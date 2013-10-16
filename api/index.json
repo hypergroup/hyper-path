@@ -1,0 +1,6 @@
+{
+  "href": "/api/index.json",
+  "apps": {
+    "href": "/api/apps.json"
+  }
+}

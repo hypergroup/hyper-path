@@ -1,0 +1,135 @@
+<html>
+<head>
+  <title>Hyper-path Test Page</title>
+  <script type="text/javascript" src="build/build.js"></script>
+</head>
+<body>
+  <a href="javascript:rootTest()">Root test</a>
+  <a href="javascript:nestedTest()">Nested test</a>
+  <a href="javascript:multiTest()">Multi test</a>
+  <a href="javascript:passedRootTest()">Passed root test</a>
+  <a href="javascript:changedRootTest()">Changed root test</a>
+  <script type="text/javascript">
+    var client = require('hyper-path');
+    var emitter = require('hyper-emitter');
+    var agent = require('hyperagent');
+    agent.API_URL = '/api/index.json';
+
+    function rootTest() {
+      var req = client('.apps')
+        .on(function(err, apps) {
+          console.log(arguments);
+        });
+
+      setInterval(function() {
+        emitter.refresh('/api/apps.json');
+      }, 100);
+
+      setTimeout(function() {
+        checkListeners();
+        req.off();
+        checkListeners();
+      }, 1000);
+    }
+
+    function nestedTest() {
+      var req = client('.apps.0.name')
+        .on(function(err, apps) {
+          console.log(arguments);
+        });
+
+      setInterval(function() {
+        emitter.refresh('/api/apps.json');
+      }, 100);
+
+      setTimeout(function() {
+        checkListeners();
+        req.off();
+        checkListeners();
+      }, 1000);
+    }
+
+    function multiTest() {
+      var first = client('.apps.0.name')
+        .on(function(err, apps) {
+          console.log('first', name);
+        });
+
+      var second = client('.apps.0.name')
+        .on(function(err, apps) {
+          console.log('second', name);
+        });
+
+      setInterval(function() {
+        emitter.refresh('/api/apps.json');
+      }, 100);
+
+      setTimeout(function() {
+        checkListeners();
+        first.off();
+        checkListeners();
+      }, 1000);
+      setTimeout(function() {
+        checkListeners();
+        second.off();
+        checkListeners();
+      }, 2000);
+    }
+
+    function passedRootTest() {
+      var req = client('apps.0.name')
+        .root({apps: {href: '/api/apps.json'}})
+        .on(function(err, apps) {
+          console.log(arguments);
+        });
+
+      setInterval(function() {
+        emitter.refresh('/api/apps.json');
+      }, 300);
+
+      setInterval(function() {
+        emitter.refresh('/api/app.json');
+      }, 200);
+
+      setTimeout(function() {
+        checkListeners();
+        req.off();
+        checkListeners();
+      }, 1000);
+    }
+
+    function changedRootTest() {
+      var req = client('apps.0.name')
+        .root({apps: {href: '/api/apps.json'}})
+        .on(function(err, apps) {
+          console.log(arguments);
+        });
+
+      setTimeout(function() {
+        req.root({apps: {href: '/api/other-apps.json'}});
+      }, 1000);
+
+      setInterval(function() {
+        emitter.refresh('/api/app.json');
+      }, 100);
+
+      setInterval(function() {
+        emitter.refresh('/api/other-app.json');
+      }, 200);
+
+      setTimeout(function() {
+        checkListeners();
+        console.log('other-apps', emitter.emitter.hasListeners('/api/other-apps.json'));
+        req.off();
+        checkListeners();
+        console.log('other-apps', emitter.emitter.hasListeners('/api/other-apps.json'));
+      }, 2000);
+    }
+
+    function checkListeners() {
+      console.log('apps', emitter.emitter.hasListeners('/api/apps.json'), 'app', emitter.emitter.hasListeners('/api/app.json'));
+    };
+
+  </script>
+</body>
+</html>

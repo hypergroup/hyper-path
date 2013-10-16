@@ -1,0 +1,11 @@
+{
+  "href": "/api/other-apps.json",
+  "apps": [
+    {
+      "href": "/api/other-app.json"
+    },
+    {
+      "href": "/api/other-app.json"
+    }
+  ]
+}
