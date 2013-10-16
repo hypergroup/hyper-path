@@ -24,32 +24,32 @@ function Request(str) {
   this._listeners = {};
 }
 
-Request.prototype.root = function(root) {
-  this._root = root;
-  if (this._fn) this.refreshRoot();
+Request.prototype.scope = function(scope) {
+  this._scope = scope;
+  if (this._fn) this.refresh();
   return this;
 };
 
 Request.prototype.on = function(fn) {
   this._fn = fn;
-  this.refreshRoot();
+  this.refresh();
   return this;
 };
 
-Request.prototype.refreshRoot = function() {
+Request.prototype.refresh = function() {
   var self = this;
-  var root = self._root;
+  var scope = self._scope;
   var fn = self._fn;
 
   // Clear any previous listeners
   this.off();
 
-  if (!self.isRoot) return self.traverse(root, 0, fn);
+  if (!self.isRoot) return self.traverse(scope, 0, fn);
 
   client()
     .on('error', fn)
     .end(function(res) {
-      self.traverse(res.body || root, 1, fn);
+      self.traverse(res.body || scope, 1, fn);
     });
 };
 

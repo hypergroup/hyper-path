@@ -7,8 +7,8 @@
   <a href="javascript:rootTest()">Root test</a>
   <a href="javascript:nestedTest()">Nested test</a>
   <a href="javascript:multiTest()">Multi test</a>
-  <a href="javascript:passedRootTest()">Passed root test</a>
-  <a href="javascript:changedRootTest()">Changed root test</a>
+  <a href="javascript:passedScopeTest()">Passed scope test</a>
+  <a href="javascript:changedScopeTest()">Changed scope test</a>
   <script type="text/javascript">
     var client = require('hyper-path');
     var emitter = require('hyper-emitter');
@@ -76,9 +76,9 @@
       }, 2000);
     }
 
-    function passedRootTest() {
+    function passedScopeTest() {
       var req = client('apps.0.name')
-        .root({apps: {href: '/api/apps.json'}})
+        .scope({apps: {href: '/api/apps.json'}})
         .on(function(err, apps) {
           console.log(arguments);
         });
@@ -98,15 +98,15 @@
       }, 1000);
     }
 
-    function changedRootTest() {
+    function changedScopeTest() {
       var req = client('apps.0.name')
-        .root({apps: {href: '/api/apps.json'}})
+        .scope({apps: {href: '/api/apps.json'}})
         .on(function(err, apps) {
           console.log(arguments);
         });
 
       setTimeout(function() {
-        req.root({apps: {href: '/api/other-apps.json'}});
+        req.scope({apps: {href: '/api/other-apps.json'}});
       }, 1000);
 
       setInterval(function() {
