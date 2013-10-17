@@ -22,6 +22,7 @@ function Request(str) {
   }
 
   this._listeners = {};
+  this._scope = {};
 }
 
 Request.prototype.scope = function(scope) {
@@ -119,6 +120,9 @@ Request.prototype.traverse = function(parent, i, cb) {
   request._listeners[href] = emitter.get(href, function(err, body) {
     if (err) return cb(err);
     if (!body) return cb(null);
+
+    // Return the resource without getting the key inside of the body
+    if (request.path[i + 1] === '') return cb(null, body);
 
     // It's the same name as what the link was
     if (body[key]) return request.traverse(body[key], i + 1, cb);
