@@ -121,11 +121,13 @@ Request.prototype.traverse = function(parent, i, cb) {
     if (err) return cb(err);
     if (!body) return cb(null);
 
+    var next = request.path[i + 1];
+
     // Return the resource without getting the key inside of the body
-    if (request.path[i + 1] === '') return cb(null, body);
+    if (next === '') return cb(null, body);
 
     // It's the same name as what the link was
-    if (body[key]) return request.traverse(body[key], i + 1, cb);
+    if (body[key] && !body[next]) return request.traverse(body[key], i + 1, cb);
 
     // We're looking for another property
     request.traverse(body, i + 1, cb);
