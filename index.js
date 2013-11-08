@@ -106,7 +106,7 @@ Request.prototype.traverse = function(parent, i, cb) {
   if (typeof value === 'undefined') return cb(null);
 
   // It's local
-  if (!value.href) return request.traverse(value, i + 1, cb);
+  if (!value.href || value[request.path[i + 1]]) return request.traverse(value, i + 1, cb);
 
   // We're just getting the link
   if (request.path[i + 1] === 'href') return cb(null, value);
