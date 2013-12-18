@@ -128,6 +128,7 @@ Request.prototype.traverse = function(parent, i, cb) {
 
     // It's the same name as what the link was
     if (body[key] && !body[next]) return request.traverse(body[key], i + 1, cb);
+    if (body.data && !body[next]) return request.traverse(body.data, i + 1, cb);
 
     // We're looking for another property
     request.traverse(body, i + 1, cb);
