@@ -2,8 +2,6 @@
  * Module dependencies
  */
 
-var client = require('hyperagent');
-var emitter = require('hyper-emitter');
 var each = require('each');
 
 /**
@@ -12,14 +10,14 @@ var each = require('each');
 
 module.exports = Request;
 
-function Request(str) {
-  if (!(this instanceof Request)) return new Request(str);
+function Request(str, client) {
+  if (!(this instanceof Request)) return new Request(str, client);
 
-  try {
-    this.parse(str);
-  } catch (err) {
-    return fn(err);
-  }
+  // init client
+  if (client) this.client = client;
+  else this.client = defaultClient();
+
+  this.parse(str);
 
   this._listeners = {};
   this._scope = {};
@@ -47,11 +45,10 @@ Request.prototype.refresh = function() {
 
   if (!self.isRoot) return self.traverse(scope, 0, fn);
 
-  client()
-    .on('error', fn)
-    .end(function(res) {
-      self.traverse(res.body || scope, 1, fn);
-    });
+  self.client(function(err, body) {
+    if (err) return fn(err);
+    self.traverse(body || scope, 1, fn);
+  });
 };
 
 /**
@@ -117,7 +114,7 @@ Request.prototype.traverse = function(parent, i, cb) {
   // Unsubscribe and resubscribe if it was previously requested
   if (request._listeners[href]) request._listeners[href]();
 
-  request._listeners[href] = emitter.get(href, function(err, body) {
+  request._listeners[href] = request.client.get(href, function(err, body) {
     if (err) return cb(err);
     if (!body) return cb(null);
 
@@ -138,4 +135,27 @@ Request.prototype.traverse = function(parent, i, cb) {
     // We're looking for another property
     request.traverse(body, i + 1, cb);
   });
+}
+
+/**
+ * Deprecated client
+ */
+
+var agent = require('hyperagent');
+var emitter = require('hyper-emitter');
+
+function defaultClient() {
+  console.warn('DEPRECATED', 'future implementations of hyper-path will not provide a client. Please see docs for details.', (new Error).stack);
+
+  function c(fn) {
+    return agent()
+      .on('error', fn)
+      .end(function(res) {
+        fn(null, res.body);
+      });
+  }
+
+  c.get = emitter.get.bind(emitter);
+
+  return c;
 }
