@@ -145,8 +145,6 @@ var agent = require('hyperagent');
 var emitter = require('hyper-emitter');
 
 function defaultClient() {
-  console.warn('DEPRECATED', 'future implementations of hyper-path will not provide a client. Please see docs for details.', (new Error).stack);
-
   function c(fn) {
     return agent()
       .on('error', fn)
