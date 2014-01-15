@@ -12,96 +12,109 @@
   <script type="text/javascript">
     var client = require('hyper-path');
     var emitter = require('hyper-emitter');
-    var agent = require('hyperagent');
-    agent.API_URL = '/api/index.json';
+
+    function agent(fn) {
+      return emitter.get('/api/index.json', fn);
+    }
+
+    agent.get = function(href, fn) {
+      return emitter.get(href, fn);
+    }
 
     function rootTest() {
-      var req = client('.apps')
+      var req = client('.apps', agent)
         .on(function(err, apps) {
           console.log(arguments);
         });
 
-      setInterval(function() {
+      var ref = setInterval(function() {
         emitter.refresh('/api/apps.json');
       }, 100);
 
       setTimeout(function() {
-        checkListeners();
         req.off();
-        checkListeners();
       }, 1000);
-    }
-
-    function nestedTest() {
-      var req = client('.apps.0.name')
-        .on(function(err, apps) {
-          console.log(arguments);
-        });
-
-      setInterval(function() {
-        emitter.refresh('/api/apps.json');
-      }, 100);
 
       setTimeout(function() {
-        checkListeners();
-        req.off();
-        checkListeners();
-      }, 1000);
-    }
-
-    function multiTest() {
-      var first = client('.apps.0.name')
-        .on(function(err, apps) {
-          console.log('first', name);
-        });
-
-      var second = client('.apps.0.name')
-        .on(function(err, apps) {
-          console.log('second', name);
-        });
-
-      setInterval(function() {
-        emitter.refresh('/api/apps.json');
-      }, 100);
-
-      setTimeout(function() {
-        checkListeners();
-        first.off();
-        checkListeners();
-      }, 1000);
-      setTimeout(function() {
-        checkListeners();
-        second.off();
-        checkListeners();
+        clearInterval(ref);
       }, 2000);
     }
 
-    function passedScopeTest() {
-      var req = client('apps.0.name')
-        .scope({apps: {href: '/api/apps.json'}})
-        .on(function(err, apps) {
+    function nestedTest() {
+      var req = client('.apps.0.name', agent)
+        .on(function(err, name) {
           console.log(arguments);
         });
 
-      setInterval(function() {
+      var ref = setInterval(function() {
+        emitter.refresh('/api/apps.json');
+      }, 100);
+
+      setTimeout(function() {
+        req.off();
+      }, 1000);
+
+      setTimeout(function() {
+        clearInterval(ref);
+      }, 2000);
+    }
+
+    function multiTest() {
+      var first = client('.apps.0.name', agent)
+        .on(function(err, name) {
+          console.log('first', name);
+        });
+
+      var second = client('.apps.0.name', agent)
+        .on(function(err, name) {
+          console.log('second', name);
+        });
+
+      var ref = setInterval(function() {
+        emitter.refresh('/api/apps.json');
+      }, 100);
+
+      setTimeout(function() {
+        first.off();
+      }, 1000);
+      setTimeout(function() {
+        second.off();
+      }, 2000);
+
+      setTimeout(function() {
+        clearInterval(ref);
+      }, 3000);
+    }
+
+    function passedScopeTest() {
+      var req = client('apps.0.name', agent)
+        .scope({apps: {href: '/api/apps.json'}})
+        .on(function(err, name) {
+          console.log(arguments);
+        });
+
+      var appsref = setInterval(function() {
         emitter.refresh('/api/apps.json');
       }, 300);
 
-      setInterval(function() {
+      var appref = setInterval(function() {
         emitter.refresh('/api/app.json');
       }, 200);
 
       setTimeout(function() {
-        checkListeners();
         req.off();
-        checkListeners();
       }, 1000);
+
+      setTimeout(function() {
+        clearInterval(appref);
+        clearInterval(appsref);
+      }, 2000);
     }
 
     function changedScopeTest() {
-      var req = client('apps.0.name')
+      var req = client('apps.0.name', agent)
         .scope({apps: {href: '/api/apps.json'}})
-        .on(function(err, apps) {
+        .on(function(err, name) {
           console.log(arguments);
         });
 
@@ -109,26 +122,23 @@
         req.scope({apps: {href: '/api/other-apps.json'}});
       }, 1000);
 
-      setInterval(function() {
+      var appref = setInterval(function() {
         emitter.refresh('/api/app.json');
       }, 100);
 
-      setInterval(function() {
+      var otherref = setInterval(function() {
         emitter.refresh('/api/other-app.json');
       }, 200);
 
       setTimeout(function() {
-        checkListeners();
-        console.log('other-apps', emitter.emitter.hasListeners('/api/other-apps.json'));
         req.off();
-        checkListeners();
-        console.log('other-apps', emitter.emitter.hasListeners('/api/other-apps.json'));
       }, 2000);
-    }
 
-    function checkListeners() {
-      console.log('apps', emitter.emitter.hasListeners('/api/apps.json'), 'app', emitter.emitter.hasListeners('/api/app.json'));
-    };
+      setTimeout(function() {
+        clearInterval(appref);
+        clearInterval(otherref);
+      }, 3000);
+    }
 
   </script>
 </body>

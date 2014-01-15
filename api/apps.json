@@ -1,6 +1,6 @@
 {
   "href": "/api/apps.json",
-  "apps": [
+  "data": [
     {
       "href": "/api/app.json"
     },

@@ -5,23 +5,37 @@
 var each = require('each');
 
 /**
- * Watch the path
+ * Expose the Request object
  */
 
 module.exports = Request;
 
-function Request(str, client) {
-  if (!(this instanceof Request)) return new Request(str, client);
+/**
+ * Create a hyper-path request
+ *
+ * @param {String} path
+ * @param {Client} client
+ */
+
+function Request(path, client) {
+  if (!(this instanceof Request)) return new Request(path, client);
 
   // init client
-  if (client) this.client = client;
-  else this.client = defaultClient();
+  this.client = client;
+  if (!this.client) throw new Error('hyper-path requires a client to be passed as the second argument');
 
-  this.parse(str);
+  this.parse(path);
 
   this._listeners = {};
   this._scope = {};
 }
+
+/**
+ * Set the root scope
+ *
+ * @param {Object} scope
+ * @return {Request}
+ */
 
 Request.prototype.scope = function(scope) {
   this._scope = scope;
@@ -29,11 +43,24 @@ Request.prototype.scope = function(scope) {
   return this;
 };
 
+/**
+ * Call a function anytime the data changes in the request
+ *
+ * @param {Function} fn
+ * @return {Request}
+ */
+
 Request.prototype.on = function(fn) {
   this._fn = fn;
   this.refresh();
   return this;
 };
+
+/**
+ * Refresh the data down the path
+ *
+ * @return {Request}
+ */
 
 Request.prototype.refresh = function() {
   var self = this;
@@ -45,16 +72,22 @@ Request.prototype.refresh = function() {
 
   if (!self.isRoot) return self.traverse(scope, 0, fn);
 
-  self.client(function(err, body) {
+  this._listeners['.'] = self.client(function(err, body) {
     if (err) return fn(err);
     self.traverse(body || scope, 1, fn);
   });
+
+  return this;
 };
 
 /**
  * Parse the string with the following syntax
  *
+ *   Start at this.scope['path']
+ *
  *     path.to.my.name
+ *
+ *   Start at the client's root
  *
  *     .path.to.my.name
  *
@@ -70,15 +103,16 @@ Request.prototype.parse = function(str) {
 };
 
 /**
- * Off
- *
  * unsubscribe from any emitters for a request
+ *
+ * @return {Request}
  */
 
 Request.prototype.off = function() {
   each(this._listeners, function(href, listener) {
-    listener();
+    if (listener) listener();
   });
+  return this;
 };
 
 /**
@@ -123,8 +157,6 @@ Request.prototype.traverse = function(parent, i, cb) {
     // Return the resource without getting the key inside of the body
     if (next === '') return cb(null, body);
 
-    // It's the same name as what the link was
-    if (body[key] && !body[next]) return request.traverse(body[key], i + 1, cb);
     // It's a collection
     if (body.data && !body[next]) {
       var data = body.data;
@@ -135,25 +167,4 @@ Request.prototype.traverse = function(parent, i, cb) {
     // We're looking for another property
     request.traverse(body, i + 1, cb);
   });
-}
-
-/**
- * Deprecated client
- */
-
-var agent = require('hyperagent');
-var emitter = require('hyper-emitter');
-
-function defaultClient() {
-  function c(fn) {
-    return agent()
-      .on('error', fn)
-      .end(function(res) {
-        fn(null, res.body);
-      });
-  }
-
-  c.get = emitter.get.bind(emitter);
-
-  return c;
 }

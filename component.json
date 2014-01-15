@@ -1,15 +1,16 @@
 {
   "name": "hyper-path",
-  "repo": "CamShaft/hyper-path",
+  "repo": "hypergroup/hyper-path",
   "description": "Traverse a hyper api",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "keywords": [],
   "dependencies": {
-    "CamShaft/hyperagent": "*",
-    "CamShaft/hyper-emitter": "*",
     "component/each": "*"
   },
-  "development": {},
+  "development": {
+    "CamShaft/hyperagent": "*",
+    "CamShaft/hyper-emitter": "*"
+  },
   "license": "MIT",
   "main": "index.js",
   "scripts": [
