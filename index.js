@@ -70,11 +70,12 @@ Request.prototype.refresh = function() {
   // Clear any previous listeners
   this.off();
 
-  if (!self.isRoot) return self.traverse(scope, 0, fn);
+  if (!self.isRoot) return self.traverse(scope, {}, 0, fn);
 
-  this._listeners['.'] = self.client(function(err, body) {
+  this._listeners['.'] = self.client(function(err, body, links) {
     if (err) return fn(err);
-    self.traverse(body || scope, 1, fn);
+    links = links || {};
+    self.traverse(body || scope, links, 1, fn);
   });
 
   return this;
@@ -124,20 +125,20 @@ Request.prototype.off = function() {
  * @api private
  */
 
-Request.prototype.traverse = function(parent, i, cb) {
+Request.prototype.traverse = function(parent, links, i, cb) {
   var request = this;
 
   // We're done searching
   if (i === request.path.length) return cb(null, parent);
 
   var key = request.path[i];
-  var value = parent[key];
+  var value = parent[key] || (links[key] ? {href: links[key]} : undefined);
 
   // We couldn't find the property
   if (typeof value === 'undefined') return cb(null);
 
   // It's local
-  if (!value.href || value[request.path[i + 1]]) return request.traverse(value, i + 1, cb);
+  if (!value.href || value[request.path[i + 1]]) return request.traverse(value, links, i + 1, cb);
 
   // We're just getting the link
   if (request.path[i + 1] === 'href') return cb(null, value);
@@ -148,9 +149,10 @@ Request.prototype.traverse = function(parent, i, cb) {
   // Unsubscribe and resubscribe if it was previously requested
   if (request._listeners[href]) request._listeners[href]();
 
-  request._listeners[href] = request.client.get(href, function(err, body) {
+  request._listeners[href] = request.client.get(href, function(err, body, links) {
     if (err) return cb(err);
-    if (!body) return cb(null);
+    if (!body && !links) return cb(null);
+    links = links || {};
 
     var next = request.path[i + 1];
 
@@ -158,13 +160,13 @@ Request.prototype.traverse = function(parent, i, cb) {
     if (next === '') return cb(null, body);
 
     // It's a collection
-    if (body.data && !body[next]) {
+    if (body.data && !body[next] && !links[next]) {
       var data = body.data;
       data.href = body.href;
-      return request.traverse(data, i + 1, cb);
+      return request.traverse(data, links, i + 1, cb);
     }
 
     // We're looking for another property
-    request.traverse(body, i + 1, cb);
+    request.traverse(body, links, i + 1, cb);
   });
 }
