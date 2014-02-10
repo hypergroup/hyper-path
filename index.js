@@ -132,7 +132,8 @@ Request.prototype.traverse = function(parent, links, i, cb) {
   if (i === request.path.length) return cb(null, parent);
 
   var key = request.path[i];
-  var value = parent[key] || (links[key] ? {href: links[key]} : undefined);
+  var value = parent[key];
+  if (typeof value === 'undefined') value = links[key] ? {href: links[key]} : undefined;
 
   // We couldn't find the property
   if (typeof value === 'undefined') return cb(null);
