@@ -161,7 +161,7 @@ Request.prototype.traverse = function(parent, links, i, cb) {
     if (next === '') return cb(null, body);
 
     // It's a collection
-    if (body.data && !body[next] && !links[next]) {
+    if (body.data && typeof body[next] === 'undefined' && !links[next]) {
       var data = body.data;
       data.href = body.href;
       return request.traverse(data, links, i + 1, cb);
