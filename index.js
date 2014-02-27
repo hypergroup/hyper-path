@@ -161,10 +161,10 @@ Request.prototype.traverse = function(parent, links, i, cb) {
     if (next === '') return cb(null, body);
 
     // It's a collection
-    if (body.data && typeof body[next] === 'undefined' && !links[next]) {
-      var data = body.data;
-      data.href = body.href;
-      return request.traverse(data, links, i + 1, cb);
+    var collection = body.collection || body.data;
+    if (collection && typeof body[next] === 'undefined' && !links[next]) {
+      collection.href = body.href;
+      return request.traverse(collection, links, i + 1, cb);
     }
 
     // We're looking for another property
