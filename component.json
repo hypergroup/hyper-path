@@ -5,11 +5,12 @@
   "version": "0.1.0",
   "keywords": [],
   "dependencies": {
-    "component/each": "*"
+    "component/each": "*",
+    "component/type": "*"
   },
   "development": {
-    "CamShaft/hyperagent": "*",
-    "CamShaft/hyper-emitter": "*"
+    "camshaft/hyperagent": "*",
+    "camshaft/hyper-emitter": "*"
   },
   "license": "MIT",
   "main": "index.js",

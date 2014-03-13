@@ -1,11 +1,12 @@
 {
   "href": "/api/apps.json",
-  "data": [
+  "collection": [
     {
       "href": "/api/app.json"
     },
     {
       "href": "/api/app.json"
     }
-  ]
+  ],
+  "count": 2
 }

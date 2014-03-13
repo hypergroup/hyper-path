@@ -3,6 +3,7 @@
  */
 
 var each = require('each');
+var type = require('type');
 
 /**
  * Expose the Request object
@@ -17,13 +18,14 @@ module.exports = Request;
  * @param {Client} client
  */
 
-function Request(path, client) {
+function Request(path, client, delim) {
   if (!(this instanceof Request)) return new Request(path, client);
 
   // init client
   this.client = client;
   if (!this.client) throw new Error('hyper-path requires a client to be passed as the second argument');
 
+  this.delim = delim || '.';
   this.parse(path);
 
   this._listeners = {};
@@ -39,7 +41,7 @@ function Request(path, client) {
 
 Request.prototype.scope = function(scope) {
   this._scope = scope;
-  if (this._fn) this.refresh();
+  if (this._fn) this.get();
   return this;
 };
 
@@ -52,7 +54,7 @@ Request.prototype.scope = function(scope) {
 
 Request.prototype.on = function(fn) {
   this._fn = fn;
-  this.refresh();
+  this.get();
   return this;
 };
 
@@ -62,10 +64,11 @@ Request.prototype.on = function(fn) {
  * @return {Request}
  */
 
-Request.prototype.refresh = function() {
+Request.prototype.get =
+Request.prototype.refresh = function(fn) {
   var self = this;
   var scope = self._scope;
-  var fn = self._fn;
+  fn = fn || self._fn;
 
   // Clear any previous listeners
   this.off();
@@ -97,7 +100,7 @@ Request.prototype.refresh = function() {
  */
 
 Request.prototype.parse = function(str) {
-  var path = this.path = str.split('.');
+  var path = this.path = str.split(this.delim);
   this.index = path[0];
   this.isRoot = this.index === '';
   this.target = path[path.length - 1];
@@ -119,6 +122,8 @@ Request.prototype.off = function() {
 /**
  * Traverse properties in the api
  *
+ * TODO support JSON pointer with '#'
+ *
  * @param {Any} parent
  * @param {Integer} i
  * @param {Function} cb
@@ -127,47 +132,81 @@ Request.prototype.off = function() {
 
 Request.prototype.traverse = function(parent, links, i, cb) {
   var request = this;
+  var path = request.path;
 
   // We're done searching
-  if (i === request.path.length) return cb(null, parent);
+  if (i === path.length) return cb(null, normalizeTarget(parent));
 
-  var key = request.path[i];
-  var value = parent[key];
-  if (typeof value === 'undefined') value = links[key] ? {href: links[key]} : undefined;
+  var key = path[i];
+  var value = get(key, parent, links);
 
   // We couldn't find the property
-  if (typeof value === 'undefined') return cb(null);
+  if (!isDefined(value)) {
+    var collection = parent.collection || parent.data;
+    if (collection && collection.hasOwnProperty(key)) return request.traverse(collection, links, i, cb);
+    return cb(null);
+  }
 
-  // It's local
-  if (!value.href || value[request.path[i + 1]]) return request.traverse(value, links, i + 1, cb);
+  var next = i + 1;
+  var nextProp = path[next];
+
+  // We don't have a link to use or it's set locally on the object
+  if (!value.href || value.hasOwnProperty(nextProp)) return request.traverse(value, links, next, cb);
 
   // We're just getting the link
-  if (request.path[i + 1] === 'href') return cb(null, value);
+  if (nextProp === 'href') return cb(null, value);
 
   // It's a link
   var href = value.href;
 
-  // Unsubscribe and resubscribe if it was previously requested
-  if (request._listeners[href]) request._listeners[href]();
-
+  var listener = request._listeners[href];
   request._listeners[href] = request.client.get(href, function(err, body, links) {
     if (err) return cb(err);
     if (!body && !links) return cb(null);
-    links = links || {};
 
-    var next = request.path[i + 1];
+    // Be nice to APIs that don't set 'href'
+    if (!body.href) body.href = href;
 
-    // Return the resource without getting the key inside of the body
-    if (next === '') return cb(null, body);
-
-    // It's a collection
-    var collection = body.collection || body.data;
-    if (collection && typeof body[next] === 'undefined' && !links[next]) {
-      collection.href = body.href;
-      return request.traverse(collection, links, i + 1, cb);
-    }
-
-    // We're looking for another property
-    request.traverse(body, links, i + 1, cb);
+    request.traverse(body, links || {}, i + 1, cb);
   });
+
+  // Unsubscribe and resubscribe if it was previously requested
+  if (listener) listener();
+}
+
+/**
+ * Get a value given a key/object
+ *
+ * @api private
+ */
+
+function get(key, parent, fallback) {
+  if (!parent) return undefined;
+  if (parent.hasOwnProperty(key)) return parent[key];
+  if (fallback.hasOwnProperty(key)) return {href: fallback[key]};
+  return void 0;
+}
+
+/**
+ * If the final object is an collection, pass that back
+ *
+ * @api private
+ */
+
+function normalizeTarget(target) {
+  if (type(target) !== 'object') return target;
+  var href = target.href;
+  target = target.collection || target.data || target; // TODO deprecate 'data'
+  target.href = href;
+  return target;
+}
+
+/**
+ * Check if a value is defined
+ *
+ * @api private
+ */
+
+function isDefined(value) {
+  return typeof value !== 'undefined';
 }

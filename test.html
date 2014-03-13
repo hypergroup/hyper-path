@@ -9,6 +9,7 @@
   <a href="javascript:multiTest()">Multi test</a>
   <a href="javascript:passedScopeTest()">Passed scope test</a>
   <a href="javascript:changedScopeTest()">Changed scope test</a>
+  <a href="javascript:collectionScopeTest()">Collection scope test</a>
   <script type="text/javascript">
     var client = require('hyper-path');
     var emitter = require('hyper-emitter');
@@ -32,7 +33,7 @@
       }, 100);
 
       setTimeout(function() {
-        req.off();
+        unsub(req);
       }, 1000);
 
       setTimeout(function() {
@@ -51,7 +52,7 @@
       }, 100);
 
       setTimeout(function() {
-        req.off();
+        unsub(req);
       }, 1000);
 
       setTimeout(function() {
@@ -75,10 +76,10 @@
       }, 100);
 
       setTimeout(function() {
-        first.off();
+        unsub(first);
       }, 1000);
       setTimeout(function() {
-        second.off();
+        unsub(second);
       }, 2000);
 
       setTimeout(function() {
@@ -102,7 +103,7 @@
       }, 200);
 
       setTimeout(function() {
-        req.off();
+        unsub(req);
       }, 1000);
 
       setTimeout(function() {
@@ -131,13 +132,42 @@
       }, 200);
 
       setTimeout(function() {
-        req.off();
+        unsub(req);
       }, 2000);
 
       setTimeout(function() {
         clearInterval(appref);
         clearInterval(otherref);
       }, 3000);
+    }
+
+    function collectionScopeTest() {
+      var root = [{href: '/api/app.json'}, {href: '/api/other-app.json'}];
+      root.href = '/api/apps.json';
+      var req1 = client('apps.count', agent)
+        .scope({apps: root})
+        .on(function(err, count) {
+          console.log('count should be 2', count);
+          unsub(req1);
+        });
+
+      var req2 = client('apps.length', agent)
+        .scope({apps: root})
+        .on(function(err, count) {
+          console.log('length should be 2', count);
+          unsub(req2);
+        });
+
+      var req3 = client('apps.thingy', agent)
+        .scope({apps: root})
+        .on(function(err, val) {
+          console.log('thingy should be undefined', val);
+          unsub(req3);
+        });
+    }
+
+    function unsub(req) {
+      if (req) req.off();
     }
 
   </script>
