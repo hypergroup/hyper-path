@@ -8,5 +8,6 @@
       "href": "/api/app.json"
     }
   ],
-  "count": 2
+  "count": 2,
+  "null-prop": null
 }

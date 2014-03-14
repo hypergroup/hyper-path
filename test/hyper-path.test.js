@@ -50,6 +50,15 @@ describe('hyper-path', function() {
       });
   });
 
+  it('shouldn\'t choke on null properties', function(done) {
+    client('.apps.null-prop.thingy', agent)
+      .on(function(err, thingy) {
+        if (err) return done(err);
+        should.not.exist(thingy);
+        done();
+      });
+  });
+
   it('should start from a passed scope', function(done) {
     client('apps.0.name', agent)
       .scope({apps: {href: '/api/apps.json'}})
