@@ -2,11 +2,12 @@
   "name": "hyper-path",
   "repo": "hypergroup/hyper-path",
   "description": "Traverse a hyper api",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "keywords": [],
   "dependencies": {
     "component/each": "*",
-    "component/type": "*"
+    "component/type": "*",
+    "camshaft/require-component": "*"
   },
   "development": {
     "camshaft/hyperagent": "*",
