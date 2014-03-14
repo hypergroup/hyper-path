@@ -2,6 +2,7 @@
  * Module dependencies
  */
 
+require = require('require-component')(require);
 var each = require('each');
 var type = require('type');
 
