@@ -71,6 +71,23 @@ var req = client('.path.to.desired.property', agent)
 req.off();
 ```
 
+Clients can also use a scope for requests with the `scope` method.
+
+```js
+client('local.remote', agent)
+  .scope({local: {href: '/path/to/resource'}})
+  .on(function(err, remote) { });
+```
+
+The function passed to on will be refreshed anytime the scope is updated.
+
+```js
+var req = client('local.remote', agent)
+  .on(function(err, remote) { });
+
+req.scope({local: {href: '/new/path/to/other/resource'}});
+```
+
 Tests
 -----
 
