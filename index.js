@@ -145,7 +145,13 @@ Request.prototype.traverse = function(parent, links, i, cb) {
   if (!isDefined(value)) {
     var collection = parent.collection || parent.data;
     if (collection && collection.hasOwnProperty(key)) return request.traverse(collection, links, i, cb);
-    return cb(null);
+    // We have a single hop path so we're going to try going up the prototype.
+    // This is necessary for frameworks like Angular where they use prototypal
+    // inheritance. The risk is getting a value that is on the root Object.
+    // We can at least check that we don't return a function though.
+    if (path.length === 1) value = parent[key];
+    if (typeof value === 'function') value = void 0;
+    return cb(null, value);
   }
 
   var next = i + 1;

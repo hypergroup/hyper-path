@@ -130,4 +130,27 @@ describe('hyper-path', function() {
         done();
       });
   });
+
+  it('should return an identity', function(done) {
+    client('thing', agent)
+      .scope({thing: 'value'})
+      .on(function(err, thing) {
+        if (err) return done(err);
+        should.exist(thing);
+        thing.should.eql('value');
+        done();
+      });
+  });
+
+  it('should return an identity down a prototype chain', function(done) {
+    var obj = Object.create({thing: 'value'});
+    client('thing', agent)
+      .scope(obj)
+      .on(function(err, thing) {
+        if (err) return done(err);
+        should.exist(thing);
+        thing.should.eql('value');
+        done();
+      });
+  });
 });
