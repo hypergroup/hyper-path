@@ -3,7 +3,6 @@
  */
 
 require = require('require-component')(require);
-var each = require('each');
 var type = require('type');
 
 /**
@@ -114,9 +113,10 @@ Request.prototype.parse = function(str) {
  */
 
 Request.prototype.off = function() {
-  each(this._listeners, function(href, listener) {
+  for (var i = 0, listener; i < this._listeners; i++) {
+    listener = this._listener[i];
     if (listener) listener();
-  });
+  }
   return this;
 };
 
