@@ -2,7 +2,7 @@
   "name": "hyper-path",
   "repo": "hypergroup/hyper-path",
   "description": "Traverse a hyper api",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "keywords": [],
   "dependencies": {
     "component/type": "*",
