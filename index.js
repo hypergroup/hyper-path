@@ -73,12 +73,12 @@ Request.prototype.refresh = function(fn) {
   // Clear any previous listeners
   this.off();
 
-  if (!self.isRoot) return self.traverse(scope, {}, 0, fn);
+  if (!self.isRoot) return self.traverse(scope, {}, 0, self.path, fn);
 
   this._listeners['.'] = self.client(function(err, body, links) {
     if (err) return fn(err);
     links = links || {};
-    self.traverse(body || scope, links, 1, fn);
+    self.traverse(body || scope, links, 1, self.path, fn);
   });
 
   return this;
@@ -131,12 +131,11 @@ Request.prototype.off = function() {
  * @api private
  */
 
-Request.prototype.traverse = function(parent, links, i, cb) {
+Request.prototype.traverse = function(parent, links, i, path, cb) {
   var request = this;
-  var path = request.path;
 
   // We're done searching
-  if (i === path.length) return cb(null, normalizeTarget(parent));
+  if (i >= path.length) return cb(null, normalizeTarget(parent));
 
   var key = path[i];
   var value = get(key, parent, links);
@@ -144,7 +143,7 @@ Request.prototype.traverse = function(parent, links, i, cb) {
   // We couldn't find the property
   if (!isDefined(value)) {
     var collection = parent.collection || parent.data;
-    if (collection && collection.hasOwnProperty(key)) return request.traverse(collection, links, i, cb);
+    if (collection && collection.hasOwnProperty(key)) return request.traverse(collection, links, i, path, cb);
     // We have a single hop path so we're going to try going up the prototype.
     // This is necessary for frameworks like Angular where they use prototypal
     // inheritance. The risk is getting a value that is on the root Object.
@@ -158,7 +157,7 @@ Request.prototype.traverse = function(parent, links, i, cb) {
   var nextProp = path[next];
 
   // We don't have a link to use or it's set locally on the object
-  if (!value.href || value.hasOwnProperty(nextProp)) return request.traverse(value, links, next, cb);
+  if (!value.href || value.hasOwnProperty(nextProp)) return request.traverse(value, links, next, path, cb);
 
   // We're just getting the link
   if (nextProp === 'href') return cb(null, value);
@@ -170,11 +169,21 @@ Request.prototype.traverse = function(parent, links, i, cb) {
   request._listeners[href] = request.client.get(href, function(err, body, links) {
     if (err) return cb(err);
     if (!body && !links) return cb(null);
+    links = links || {};
 
     // Be nice to APIs that don't set 'href'
     if (!body.href) body.href = href;
 
-    request.traverse(body, links || {}, i + 1, cb);
+    var pointer = href.split('#')[1];
+    if (!pointer) return request.traverse(body, links, i + 1, path, cb);
+
+    pointer = pointer.split('/');
+    if (pointer[0] === '') pointer.shift();
+
+    request.traverse(body, links, 0, pointer, function(err, val) {
+      if (err) return cb(err);
+      request.traverse(val, links, i + 1, path, cb);
+    });
   });
 
   // Unsubscribe and resubscribe if it was previously requested

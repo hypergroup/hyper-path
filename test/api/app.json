@@ -1,4 +1,7 @@
 {
   "href": "/api/app.json",
-  "name": "app"
+  "name": "app",
+  "users": {
+    "href": "/api/users.json"
+  }
 }

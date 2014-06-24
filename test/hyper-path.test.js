@@ -153,4 +153,34 @@ describe('hyper-path', function() {
         done();
       });
   });
+
+  it('should follow a JSON pointer', function(done) {
+    client('.pointer', agent)
+      .on(function(err, pointer) {
+        if (err) return done(err);
+        should.exist(pointer);
+        pointer.should.eql('app');
+        done();
+      });
+  });
+
+  it('should follow a deeply-nested JSON pointer', function(done) {
+    client('.deep-pointer', agent)
+      .on(function(err, pointer) {
+        if (err) return done(err);
+        should.exist(pointer);
+        pointer.should.eql('app');
+        done();
+      });
+  });
+
+  it('should follow a deeply-nested JSON pointer', function(done) {
+    client('.deep-pointer', agent)
+      .on(function(err, pointer) {
+        if (err) return done(err);
+        should.exist(pointer);
+        pointer.should.eql('app');
+        done();
+      });
+  });
 });

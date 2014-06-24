@@ -2,5 +2,14 @@
   "href": "/api/index.json",
   "apps": {
     "href": "/api/apps.json"
+  },
+  "pointer": {
+    "href": "/api/app.json#/name"
+  },
+  "deep-pointer": {
+    "href": "/api/apps.json#/0/name"
+  },
+  "undefined-pointer": {
+    "href": "/api/app.json#/foo/bar/baz"
   }
 }
