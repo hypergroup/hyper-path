@@ -2,9 +2,6 @@
  * Module dependencies
  */
 
-require = require('require-component')(require);
-var type = require('type');
-
 /**
  * Expose the Request object
  */
@@ -210,7 +207,7 @@ function get(key, parent, fallback) {
  */
 
 function normalizeTarget(target) {
-  if (type(target) !== 'object') return target;
+  if (typeof target !== 'object') return target;
   var href = target.href;
   target = target.collection || target.data || target; // TODO deprecate 'data'
   target.href = href;

@@ -1,0 +1,23 @@
+{
+  "name": "hyper-path",
+  "main": "index.js",
+  "version": "0.1.4",
+  "homepage": "https://github.com/hypergroup/hyper-path",
+  "description": "Traverse a hyper api",
+  "keywords": [
+    "hyper",
+    "json",
+    "traverse"
+  ],
+  "authors": [
+    "Cameron Bytheway <bytheway.cameron@gmail.com>"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}

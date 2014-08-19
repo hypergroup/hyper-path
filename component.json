@@ -4,10 +4,7 @@
   "description": "Traverse a hyper api",
   "version": "0.1.4",
   "keywords": [],
-  "dependencies": {
-    "component/type": "*",
-    "camshaft/require-component": "*"
-  },
+  "dependencies": {},
   "development": {
     "camshaft/hyperagent": "*",
     "camshaft/hyper-emitter": "*"
