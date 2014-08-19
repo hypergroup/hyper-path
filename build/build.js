@@ -95,7 +95,7 @@ function Request(path, client, delim) {
  */
 
 Request.prototype.scope = function(scope) {
-  this._scope = scope;
+  this._scope = this.wrappedScope ? [scope] : scope;
   if (this._fn) this.get();
   return this;
 };
@@ -156,6 +156,10 @@ Request.prototype.refresh = function(fn) {
 
 Request.prototype.parse = function(str) {
   var path = this.path = str.split(this.delim);
+  if (path.length === 1) {
+    this.wrappedScope = true;
+    path.unshift(0);
+  }
   this.index = path[0];
   this.isRoot = this.index === '';
   this.target = path[path.length - 1];
@@ -203,7 +207,7 @@ Request.prototype.traverse = function(parent, links, i, path, cb) {
     // This is necessary for frameworks like Angular where they use prototypal
     // inheritance. The risk is getting a value that is on the root Object.
     // We can at least check that we don't return a function though.
-    if (path.length === 1) value = parent[key];
+    if (this.wrappedScope) value = parent[key];
     if (typeof value === 'function') value = void 0;
     return cb(null, value);
   }
