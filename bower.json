@@ -1,6 +1,6 @@
 {
   "name": "hyper-path",
-  "main": "index.js",
+  "main": "build/build.js",
   "version": "0.1.5",
   "homepage": "https://github.com/hypergroup/hyper-path",
   "description": "Traverse a hyper api",
