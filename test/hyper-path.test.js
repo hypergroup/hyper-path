@@ -154,6 +154,17 @@ describe('hyper-path', function() {
       });
   });
 
+  it('should return an identity from a link', function(done) {
+    client('name', agent)
+      .scope({href: '/api/app.json'})
+      .on(function(err, name) {
+        if (err) return done(err);
+        should.exist(name);
+        name.should.eql('app');
+        done();
+      });
+  });
+
   it('should follow a JSON pointer', function(done) {
     client('.pointer', agent)
       .on(function(err, pointer) {
