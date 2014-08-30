@@ -98,11 +98,11 @@ Request.prototype.refresh = function(fn) {
 
 Request.prototype.parse = function(str) {
   var path = this.path = str.split(this.delim);
+  this.index = path[0];
   if (path.length === 1) {
     this.wrappedScope = true;
     path.unshift(0);
   }
-  this.index = path[0];
   this.isRoot = this.index === '';
   this.target = path[path.length - 1];
 };
