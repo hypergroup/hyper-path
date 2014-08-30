@@ -1,7 +1,7 @@
 {
   "name": "hyper-path",
   "main": "build/build.js",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "homepage": "https://github.com/hypergroup/hyper-path",
   "description": "Traverse a hyper api",
   "keywords": [

@@ -1,9 +1,9 @@
 
 build: components index.js components
-	@component build --dev
+	@component build --standalone hyper-path
 
 components: component.json
-	@component install --dev
+	@component install
 
 clean:
 	rm -fr build components template.js
