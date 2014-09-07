@@ -7,16 +7,18 @@ var app = express();
 app.use(express.static(__dirname));
 
 describe('hyper-path', function() {
-  function agent(fn) {
-    return agent.get('/api/index.json', fn);
-  }
-  agent.get = function(href, fn) {
-    request(app)
-      .get(href)
-      .end(function(err, res) {
-        if (!res.ok) return fn(new Error(res.body || 'HTTP Error ' + res.status));
-        fn(err, res.body);
-      });
+  var agent = {
+    root: function (fn) {
+      return agent.get('/api/index.json', fn);
+    },
+    get: function(href, fn) {
+      request(app)
+        .get(href)
+        .end(function(err, res) {
+          if (!res.ok) return fn(new Error(res.body || 'HTTP Error ' + res.status));
+          fn(err, res.body);
+        });
+    }
   };
 
   it('should return the root resource', function(done) {
