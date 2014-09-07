@@ -72,13 +72,11 @@ Request.prototype.refresh = function(fn) {
 
   if (!self.isRoot) return self.traverse(scope, {}, 0, self.path, fn);
 
-  this._listeners['.'] = self.client(function(err, body, links) {
+  return this._listeners['.'] = self.client.root(function(err, body, links) {
     if (err) return fn(err);
     links = links || {};
-    self.traverse(body || scope, links, 1, self.path, fn);
+    return self.traverse(body || scope, links, 1, self.path, fn);
   });
-
-  return this;
 };
 
 /**
@@ -124,8 +122,6 @@ Request.prototype.off = function() {
 /**
  * Traverse properties in the api
  *
- * TODO support JSON pointer with '#'
- *
  * @param {Any} parent
  * @param {Integer} i
  * @param {Function} cb
@@ -167,7 +163,7 @@ Request.prototype.traverse = function(parent, links, i, path, cb) {
   var href = value.href;
 
   var listener = request._listeners[href];
-  request._listeners[href] = request.client.get(href, function(err, body, links) {
+  var res = request._listeners[href] = request.client.get(href, function(err, body, links) {
     if (err) return cb(err);
     if (!body && !links) return cb(null);
     links = links || {};
@@ -181,14 +177,16 @@ Request.prototype.traverse = function(parent, links, i, path, cb) {
     pointer = pointer.split('/');
     if (pointer[0] === '') pointer.shift();
 
-    request.traverse(body, links, 0, pointer, function(err, val) {
+    return request.traverse(body, links, 0, pointer, function(err, val) {
       if (err) return cb(err);
-      request.traverse(val, links, i + 1, path, cb);
+      return request.traverse(val, links, i + 1, path, cb);
     });
   });
 
   // Unsubscribe and resubscribe if it was previously requested
   if (listener) listener();
+
+  return res;
 }
 
 /**
