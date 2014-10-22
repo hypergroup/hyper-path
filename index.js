@@ -95,7 +95,7 @@ Request.prototype.refresh = function(fn) {
  */
 
 Request.prototype.parse = function(str) {
-  var path = this.path = str.split(this.delim);
+  var path = this.path = Array.isArray(str) ? str : str.split(this.delim);
   this.index = path[0];
   if (path.length === 1) {
     this.wrappedScope = true;
@@ -198,6 +198,7 @@ Request.prototype.traverse = function(parent, links, i, path, cb) {
 function get(key, parent, fallback) {
   if (!parent) return undefined;
   if (parent.hasOwnProperty(key)) return parent[key];
+  if (typeof parent.get === 'function') return parent.get(key);
   if (fallback.hasOwnProperty(key)) return {href: fallback[key]};
   return void 0;
 }
