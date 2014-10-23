@@ -177,6 +177,16 @@ describe('hyper-path', function() {
       });
   });
 
+  it('should follow a local JSON pointer', function(done) {
+    client('.local-pointer', agent)
+      .on(function(err, pointer) {
+        if (err) return done(err);
+        should.exist(pointer);
+        pointer.should.eql('app');
+        done();
+      });
+  });
+
   it('should follow a deeply-nested JSON pointer', function(done) {
     client('.deep-pointer', agent)
       .on(function(err, pointer) {
@@ -194,6 +204,23 @@ describe('hyper-path', function() {
         should.exist(pointer);
         pointer.should.eql('app');
         done();
+      });
+  });
+
+  it.skip('should handle deeply-nested collections', function(done) {
+    client('.deeply-nested-collection', agent)
+      .on(function(err, collection) {
+        if (err) return done(err);
+        should.exist(collection);
+        collection.length.should.eql(2);
+        client('col.count', agent)
+          .scope({col: collection})
+          .on(function(err, count) {
+            if (err) return done(err);
+            should.exist(count);
+            count.should.eql(2);
+            done();
+          });
       });
   });
 });

@@ -1,0 +1,11 @@
+{
+  "deeply": {
+    "nested": {
+      "count": 2,
+      "collection": [
+        {"item": 1},
+        {"item": 2}
+      ]
+    }
+  }
+}

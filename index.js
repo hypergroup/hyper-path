@@ -70,12 +70,12 @@ Request.prototype.refresh = function(fn) {
   // Clear any previous listeners
   this.off();
 
-  if (!self.isRoot) return self.traverse(scope, {}, 0, self.path, fn);
+  if (!self.isRoot) return self.traverse(scope, {}, 0, self.path, {}, fn);
 
   return this._listeners['.'] = self.client.root(function(err, body, links) {
     if (err) return fn(err);
     links = links || {};
-    return self.traverse(body || scope, links, 1, self.path, fn);
+    return self.traverse(body || scope, links, 1, self.path, body, fn);
   });
 };
 
@@ -128,7 +128,7 @@ Request.prototype.off = function() {
  * @api private
  */
 
-Request.prototype.traverse = function(parent, links, i, path, cb) {
+Request.prototype.traverse = function(parent, links, i, path, parentDocument, cb) {
   var request = this;
 
   // We're done searching
@@ -140,7 +140,7 @@ Request.prototype.traverse = function(parent, links, i, path, cb) {
   // We couldn't find the property
   if (!isDefined(value)) {
     var collection = parent.collection || parent.data;
-    if (collection && collection.hasOwnProperty(key)) return request.traverse(collection, links, i, path, cb);
+    if (collection && collection.hasOwnProperty(key)) return request.traverse(collection, links, i, path, parentDocument, cb);
     // We have a single hop path so we're going to try going up the prototype.
     // This is necessary for frameworks like Angular where they use prototypal
     // inheritance. The risk is getting a value that is on the root Object.
@@ -154,13 +154,19 @@ Request.prototype.traverse = function(parent, links, i, path, cb) {
   var nextProp = path[next];
 
   // We don't have a link to use or it's set locally on the object
-  if (!value.href || value.hasOwnProperty(nextProp)) return request.traverse(value, links, next, path, cb);
+  if (!value.href || value.hasOwnProperty(nextProp)) return request.traverse(value, links, next, path, parentDocument, cb);
 
   // We're just getting the link
   if (nextProp === 'href') return cb(null, value);
 
   // It's a link
   var href = value.href;
+
+  // it's a local pointer
+  if (href.charAt(0) === '#') return request.traverse(parentDocument, links, 0, href.slice(2).split('/'), parentDocument, function(err, val) {
+    if (err) return cb(err);
+    return request.traverse(val, links, i + 1, path, parentDocument, cb);
+  });
 
   var listener = request._listeners[href];
   var res = request._listeners[href] = request.client.get(href, function(err, body, links) {
@@ -171,15 +177,15 @@ Request.prototype.traverse = function(parent, links, i, path, cb) {
     // Be nice to APIs that don't set 'href'
     if (!body.href) body.href = href;
 
-    var pointer = href.split('#')[1];
-    if (!pointer) return request.traverse(body, links, i + 1, path, cb);
+    var pointer = href.split('#');
+    if (pointer.length === 1) return request.traverse(body, links, i + 1, path, body, cb);
 
-    pointer = pointer.split('/');
+    pointer = pointer[1].split('/');
     if (pointer[0] === '') pointer.shift();
 
-    return request.traverse(body, links, 0, pointer, function(err, val) {
+    return request.traverse(body, links, 0, pointer, body, function(err, val) {
       if (err) return cb(err);
-      return request.traverse(val, links, i + 1, path, cb);
+      return request.traverse(val, links, i + 1, path, body, cb);
     });
   });
 

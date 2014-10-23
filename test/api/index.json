@@ -6,10 +6,16 @@
   "pointer": {
     "href": "/api/app.json#/name"
   },
+  "local-pointer": {
+    "href": "#/apps/0/name"
+  },
   "deep-pointer": {
     "href": "/api/apps.json#/0/name"
   },
   "undefined-pointer": {
     "href": "/api/app.json#/foo/bar/baz"
+  },
+  "deeply-nested-collection": {
+    "href": "/api/collection.json#/deeply/nested/collection"
   }
 }
