@@ -124,6 +124,16 @@ describe('hyper-path', function() {
       });
   });
 
+  it('should return a "href"', function(done) {
+    client('.apps.href', agent)
+      .on(function(err, href) {
+        if (err) return done(err);
+        should.exist(href);
+        href.should.match(/apps.json/);
+        done();
+      });
+  });
+
   it('should not reference native array functions', function(done) {
     client('.apps.slice', agent)
       .on(function(err, slice) {
