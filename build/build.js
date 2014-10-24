@@ -128,12 +128,12 @@ Request.prototype.refresh = function(fn) {
   // Clear any previous listeners
   this.off();
 
-  if (!self.isRoot) return self.traverse(scope, {}, 0, self.path, fn);
+  if (!self.isRoot) return self.traverse(scope, {}, 0, self.path, {}, true, fn);
 
   return this._listeners['.'] = self.client.root(function(err, body, links) {
     if (err) return fn(err);
     links = links || {};
-    return self.traverse(body || scope, links, 1, self.path, fn);
+    return self.traverse(body || scope, links, 1, self.path, body, true, fn);
   });
 };
 
@@ -153,7 +153,7 @@ Request.prototype.refresh = function(fn) {
  */
 
 Request.prototype.parse = function(str) {
-  var path = this.path = str.split(this.delim);
+  var path = this.path = Array.isArray(str) ? str.slice() : str.split(this.delim);
   this.index = path[0];
   if (path.length === 1) {
     this.wrappedScope = true;
@@ -181,47 +181,87 @@ Request.prototype.off = function() {
  * Traverse properties in the api
  *
  * @param {Any} parent
+ * @param {Object} links
  * @param {Integer} i
+ * @param {Array} path
+ * @param {Object} parentDocument
+ * @param {Boolean} normalize
  * @param {Function} cb
  * @api private
  */
 
-Request.prototype.traverse = function(parent, links, i, path, cb) {
-  var request = this;
+Request.prototype.traverse = function(parent, links, i, path, parentDocument, normalize, cb) {
+  var self = this;
 
-  // We're done searching
-  if (i >= path.length) return cb(null, normalizeTarget(parent));
+  // we're done searching
+  if (i >= path.length) return cb(null, normalize ? normalizeTarget(parent) : parent);
 
   var key = path[i];
   var value = get(key, parent, links);
 
-  // We couldn't find the property
-  if (!isDefined(value)) {
-    var collection = parent.collection || parent.data;
-    if (collection && collection.hasOwnProperty(key)) return request.traverse(collection, links, i, path, cb);
-    // We have a single hop path so we're going to try going up the prototype.
-    // This is necessary for frameworks like Angular where they use prototypal
-    // inheritance. The risk is getting a value that is on the root Object.
-    // We can at least check that we don't return a function though.
-    if (this.wrappedScope) value = parent[key];
-    if (typeof value === 'function') value = void 0;
-    return cb(null, value);
-  }
+  // we couldn't find the property
+  if (!isDefined(value)) return self.handleUndefined(key, parent, links, i, path, parentDocument, normalize, cb);
 
   var next = i + 1;
   var nextProp = path[next];
-
-  // We don't have a link to use or it's set locally on the object
-  if (!value.href || value.hasOwnProperty(nextProp)) return request.traverse(value, links, next, path, cb);
-
-  // We're just getting the link
-  if (nextProp === 'href') return cb(null, value);
-
-  // It's a link
   var href = value.href;
 
-  var listener = request._listeners[href];
-  var res = request._listeners[href] = request.client.get(href, function(err, body, links) {
+  // we don't have a link to use or it's set locally on the object
+  if (!href || value.hasOwnProperty(nextProp)) return self.traverse(value, links, next, path, parentDocument, normalize, cb);
+
+  // it's a local pointer
+  if (href.charAt(0) === '#') return self.fetchJsonPath(parentDocument, links, href.slice(1), next, path, normalize, cb);
+
+  // fetch the resource
+  return self.fetchResource(href, next, path, normalize, cb);
+}
+
+/**
+ * Handle an undefined value
+ *
+ * @param {String} key
+ * @param {Object|Array} parent
+ * @param {Object} links
+ * @param {Integer} i
+ * @param {Array} path
+ * @param {Object} parentDocument
+ * @param {Boolean} normalize
+ * @param {Function} cb
+ */
+
+Request.prototype.handleUndefined = function(key, parent, links, i, path, parentDocument, normalize, cb) {
+  // check to make sure it's not on a "normalized" target
+  var collection = normalizeTarget(parent);
+  if (collection && collection.hasOwnProperty(key)) return this.traverse(collection, links, i, path, parentDocument, normalize, cb);
+
+  // We have a single hop path so we're going to try going up the prototype.
+  // This is necessary for frameworks like Angular where they use prototypal
+  // inheritance. The risk is getting a value that is on the root Object.
+  // We can at least check that we don't return a function though.
+  var value;
+  if (this.wrappedScope) value = parent[key];
+  if (typeof value === 'function') value = void 0;
+  return cb(null, value);
+};
+
+/**
+ * Fetch a resource through the client
+ *
+ * @param {String} href
+ * @param {Integer} i
+ * @param {Array} path
+ * @param {Boolean} normalize
+ * @param {Function} cb
+ */
+
+Request.prototype.fetchResource = function(href, i, path, normalize, cb) {
+  var self = this;
+  var orig = href;
+  var parts = orig.split('#');
+  href = parts[0];
+
+  var listener = self._listeners[orig];
+  var res = self._listeners[orig] = self.client.get(href, function(err, body, links) {
     if (err) return cb(err);
     if (!body && !links) return cb(null);
     links = links || {};
@@ -229,23 +269,40 @@ Request.prototype.traverse = function(parent, links, i, path, cb) {
     // Be nice to APIs that don't set 'href'
     if (!body.href) body.href = href;
 
-    var pointer = href.split('#')[1];
-    if (!pointer) return request.traverse(body, links, i + 1, path, cb);
-
-    pointer = pointer.split('/');
-    if (pointer[0] === '') pointer.shift();
-
-    return request.traverse(body, links, 0, pointer, function(err, val) {
-      if (err) return cb(err);
-      return request.traverse(val, links, i + 1, path, cb);
-    });
+    if (parts.length === 1) return self.traverse(body, links, i, path, body, normalize, cb);
+    return self.fetchJsonPath(body, links, parts[1], i, path, normalize, cb);
   });
 
   // Unsubscribe and resubscribe if it was previously requested
   if (listener) listener();
 
   return res;
-}
+};
+
+/**
+ * Traverse a JSON path
+ *
+ * @param {Object} parentDocument
+ * @param {Object} links
+ * @param {String} href
+ * @param {Integer} i
+ * @param {Array} path
+ * @param {Boolean} normalize
+ * @param {Function} cb
+ */
+
+Request.prototype.fetchJsonPath = function(parentDocument, links, href, i, path, normalize, cb) {
+  var self = this;
+  var pointer = href.split('/');
+
+  if (pointer[0] === '') pointer.shift();
+
+  return self.traverse(parentDocument, links, 0, pointer, parentDocument, false, function(err, val) {
+    if (err) return cb(err);
+    if (typeof val === 'object' && !val.href) val.href = parentDocument.href + '#' + href;
+    return self.traverse(val, links, i, path, parentDocument, normalize, cb);
+  });
+};
 
 /**
  * Get a value given a key/object
@@ -256,7 +313,8 @@ Request.prototype.traverse = function(parent, links, i, path, cb) {
 function get(key, parent, fallback) {
   if (!parent) return undefined;
   if (parent.hasOwnProperty(key)) return parent[key];
-  if (fallback.hasOwnProperty(key)) return {href: fallback[key]};
+  if (typeof parent.get === 'function') return parent.get(key);
+  if (fallback && fallback.hasOwnProperty(key)) return {href: fallback[key]};
   return void 0;
 }
 
