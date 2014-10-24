@@ -17,5 +17,16 @@
   },
   "deeply-nested-collection": {
     "href": "/api/collection.json#/deeply/nested"
+  },
+  "local": {
+    "pointer": {
+      "cant": {
+        "loose": {
+          "context": {
+            "href": "#/apps/0/name"
+          }
+        }
+      }
+    }
   }
 }

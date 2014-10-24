@@ -15,7 +15,7 @@ describe('hyper-path', function() {
       request(app)
         .get(href)
         .end(function(err, res) {
-          if (!res.ok) return fn(new Error(res.body || 'HTTP Error ' + res.status));
+          if (!res.ok) return fn(new Error('HTTP Error ' + res.status + ' ' + href));
           fn(err, res.body);
         });
     }
@@ -194,6 +194,23 @@ describe('hyper-path', function() {
         should.exist(pointer);
         pointer.should.eql('app');
         done();
+      });
+  });
+
+  it('should handle a continuation of a local JSON pointer', function(done) {
+    client('.local.pointer', agent)
+      .on(function(err, pointer) {
+        if (err) return done(err);
+        should.exist(pointer);
+
+        client('pointer.cant.loose.context', agent)
+          .scope({pointer: pointer})
+          .on(function(err, name) {
+            if (err) return done(err);
+            should.exist(name);
+            name.should.eql('app');
+            done();
+          });
       });
   });
 
