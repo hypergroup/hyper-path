@@ -284,7 +284,6 @@ function normalizeTarget(target) {
   if (typeof target !== 'object' || !target) return target;
   var href = get('href', target);
   target = get('collection', target) || get('data', target) || target; // TODO deprecate 'data'
-  target.href = href;
   return set('href', href, target);
 }
 
