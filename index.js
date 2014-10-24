@@ -70,12 +70,12 @@ Request.prototype.refresh = function(fn) {
   // Clear any previous listeners
   this.off();
 
-  if (!self.isRoot) return self.traverse(scope, {}, 0, self.path, {}, fn);
+  if (!self.isRoot) return self.traverse(scope, {}, 0, self.path, {}, true, fn);
 
   return this._listeners['.'] = self.client.root(function(err, body, links) {
     if (err) return fn(err);
     links = links || {};
-    return self.traverse(body || scope, links, 1, self.path, body, fn);
+    return self.traverse(body || scope, links, 1, self.path, body, true, fn);
   });
 };
 
@@ -123,35 +123,39 @@ Request.prototype.off = function() {
  * Traverse properties in the api
  *
  * @param {Any} parent
+ * @param {Object} links
  * @param {Integer} i
+ * @param {Array} path
+ * @param {Object} parentDocument
+ * @param {Boolean} normalize
  * @param {Function} cb
  * @api private
  */
 
-Request.prototype.traverse = function(parent, links, i, path, parentDocument, cb) {
+Request.prototype.traverse = function(parent, links, i, path, parentDocument, normalize, cb) {
   var self = this;
 
   // we're done searching
-  if (i >= path.length) return cb(null, normalizeTarget(parent));
+  if (i >= path.length) return cb(null, normalize ? normalizeTarget(parent) : parent);
 
   var key = path[i];
   var value = get(key, parent, links);
 
   // we couldn't find the property
-  if (!isDefined(value)) return self.handleUndefined(key, parent, links, i, path, parentDocument, cb);
+  if (!isDefined(value)) return self.handleUndefined(key, parent, links, i, path, parentDocument, normalize, cb);
 
   var next = i + 1;
   var nextProp = path[next];
   var href = value.href;
 
   // we don't have a link to use or it's set locally on the object
-  if (!href || value.hasOwnProperty(nextProp)) return self.traverse(value, links, next, path, parentDocument, cb);
+  if (!href || value.hasOwnProperty(nextProp)) return self.traverse(value, links, next, path, parentDocument, normalize, cb);
 
   // it's a local pointer
-  if (href.charAt(0) === '#') return self.fetchJsonPath(parentDocument, links, href.slice(1), i, path, cb);
+  if (href.charAt(0) === '#') return self.fetchJsonPath(parentDocument, links, href.slice(1), next, path, normalize, cb);
 
   // fetch the resource
-  return self.fetchResource(href, i, path, cb);
+  return self.fetchResource(href, next, path, normalize, cb);
 }
 
 /**
@@ -163,13 +167,14 @@ Request.prototype.traverse = function(parent, links, i, path, parentDocument, cb
  * @param {Integer} i
  * @param {Array} path
  * @param {Object} parentDocument
+ * @param {Boolean} normalize
  * @param {Function} cb
  */
 
-Request.prototype.handleUndefined = function(key, parent, links, i, path, parentDocument, cb) {
+Request.prototype.handleUndefined = function(key, parent, links, i, path, parentDocument, normalize, cb) {
   // check to make sure it's not on a "normalized" target
   var collection = normalizeTarget(parent);
-  if (collection && collection.hasOwnProperty(key)) return this.traverse(collection, links, i, path, parentDocument, cb);
+  if (collection && collection.hasOwnProperty(key)) return this.traverse(collection, links, i, path, parentDocument, normalize, cb);
 
   // We have a single hop path so we're going to try going up the prototype.
   // This is necessary for frameworks like Angular where they use prototypal
@@ -187,14 +192,18 @@ Request.prototype.handleUndefined = function(key, parent, links, i, path, parent
  * @param {String} href
  * @param {Integer} i
  * @param {Array} path
+ * @param {Boolean} normalize
  * @param {Function} cb
  */
 
-Request.prototype.fetchResource = function(href, i, path, cb) {
+Request.prototype.fetchResource = function(href, i, path, normalize, cb) {
   var self = this;
+  var orig = href;
+  var parts = orig.split('#');
+  href = parts[0];
 
-  var listener = self._listeners[href];
-  var res = self._listeners[href] = self.client.get(href, function(err, body, links) {
+  var listener = self._listeners[orig];
+  var res = self._listeners[orig] = self.client.get(href, function(err, body, links) {
     if (err) return cb(err);
     if (!body && !links) return cb(null);
     links = links || {};
@@ -202,9 +211,8 @@ Request.prototype.fetchResource = function(href, i, path, cb) {
     // Be nice to APIs that don't set 'href'
     if (!body.href) body.href = href;
 
-    var pointer = href.split('#');
-    if (pointer.length === 1) return self.traverse(body, links, i + 1, path, body, cb);
-    return self.fetchJsonPath(body, links, pointer[1], i, path, cb);
+    if (parts.length === 1) return self.traverse(body, links, i, path, body, normalize, cb);
+    return self.fetchJsonPath(body, links, parts[1], i, path, normalize, cb);
   });
 
   // Unsubscribe and resubscribe if it was previously requested
@@ -221,18 +229,20 @@ Request.prototype.fetchResource = function(href, i, path, cb) {
  * @param {String} href
  * @param {Integer} i
  * @param {Array} path
+ * @param {Boolean} normalize
  * @param {Function} cb
  */
 
-Request.prototype.fetchJsonPath = function(parentDocument, links, href, i, path, cb) {
+Request.prototype.fetchJsonPath = function(parentDocument, links, href, i, path, normalize, cb) {
   var self = this;
   var pointer = href.split('/');
 
   if (pointer[0] === '') pointer.shift();
 
-  return self.traverse(parentDocument, links, 0, pointer, parentDocument, function(err, val) {
+  return self.traverse(parentDocument, links, 0, pointer, parentDocument, false, function(err, val) {
     if (err) return cb(err);
-    return self.traverse(val, links, i + 1, path, parentDocument, cb);
+    if (typeof val === 'object' && !val.href) val.href = parentDocument.href + '#' + href;
+    return self.traverse(val, links, i, path, parentDocument, normalize, cb);
   });
 };
 
@@ -246,7 +256,7 @@ function get(key, parent, fallback) {
   if (!parent) return undefined;
   if (parent.hasOwnProperty(key)) return parent[key];
   if (typeof parent.get === 'function') return parent.get(key);
-  if (fallback.hasOwnProperty(key)) return {href: fallback[key]};
+  if (fallback && fallback.hasOwnProperty(key)) return {href: fallback[key]};
   return void 0;
 }
 

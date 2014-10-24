@@ -217,12 +217,13 @@ describe('hyper-path', function() {
       });
   });
 
-  it.skip('should handle deeply-nested collections', function(done) {
+  it('should handle JSON pointer collections', function(done) {
     client('.deeply-nested-collection', agent)
       .on(function(err, collection) {
         if (err) return done(err);
         should.exist(collection);
         collection.length.should.eql(2);
+
         client('col.count', agent)
           .scope({col: collection})
           .on(function(err, count) {

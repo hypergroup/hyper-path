@@ -16,6 +16,6 @@
     "href": "/api/app.json#/foo/bar/baz"
   },
   "deeply-nested-collection": {
-    "href": "/api/collection.json#/deeply/nested/collection"
+    "href": "/api/collection.json#/deeply/nested"
   }
 }
