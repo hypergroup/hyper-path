@@ -85,6 +85,7 @@ function Request(path, client, delim) {
 
   this._listeners = {};
   this._scope = {};
+  this._warnings = {};
 }
 
 /**
@@ -95,6 +96,7 @@ function Request(path, client, delim) {
  */
 
 Request.prototype.scope = function(scope) {
+  this.trace('scope', arguments);
   this._scope = this.wrappedScope ? [scope] : scope;
   if (this._fn) this.get();
   return this;
@@ -108,6 +110,7 @@ Request.prototype.scope = function(scope) {
  */
 
 Request.prototype.on = function(fn) {
+  this.trace('on', arguments);
   this._fn = fn;
   this.get();
   return this;
@@ -122,6 +125,7 @@ Request.prototype.on = function(fn) {
 Request.prototype.get =
 Request.prototype.refresh = function(fn) {
   var self = this;
+  self.trace('get', arguments);
   var scope = self._scope;
   fn = fn || self._fn;
 
@@ -130,12 +134,39 @@ Request.prototype.refresh = function(fn) {
 
   if (!self.isRoot) return self.traverse(scope, {}, 0, self.path, {}, true, fn);
 
-  return this._listeners['.'] = self.client.root(function(err, body, links) {
+  return this._listeners['.'] = self.client.root(function(err, body, links, href) {
     if (err) return fn(err);
     links = links || {};
+    href = href || body.href;
+
+    if (!href) self.warn('root missing href: local JSON pointers will not function properly');
+    else body = self._resolve(body.href, body);
+
     return self.traverse(body || scope, links, 1, self.path, body, true, fn);
   });
 };
+
+/**
+ * Issue a warning once per request
+ *
+ * @param {String} str
+ */
+
+Request.prototype.warn = function(str) {
+  if (this._warnings[str]) return;
+  console.warn(str);
+  this._warnings[str] = true;
+  return this;
+};
+
+/**
+ * Trace a request
+ *
+ * @param {String} method
+ * @param {Array} args
+ */
+
+Request.prototype.trace = function(method, args) {};
 
 /**
  * Parse the string with the following syntax
@@ -153,6 +184,7 @@ Request.prototype.refresh = function(fn) {
  */
 
 Request.prototype.parse = function(str) {
+  this.trace('parse', arguments);
   var path = this.path = Array.isArray(str) ? str.slice() : str.split(this.delim);
   this.index = path[0];
   if (path.length === 1) {
@@ -170,6 +202,7 @@ Request.prototype.parse = function(str) {
  */
 
 Request.prototype.off = function() {
+  this.trace('trace');
   var listeners = this._listeners;
   Object.keys(listeners).forEach(function(href) {
     var listener = listeners[href];
@@ -194,29 +227,27 @@ Request.prototype.off = function() {
 
 Request.prototype.traverse = function(parent, links, i, path, parentDocument, normalize, cb) {
   var self = this;
+  self.trace('traverse', arguments);
 
   // we're done searching
-  if (i >= path.length) return cb(null, normalize ? normalizeTarget(parent) : parent);
+  if (i >= path.length) return cb(null, normalize ? self._normalizeTarget(parent) : parent);
 
   var key = path[i];
-  var value = get(key, parent, links);
+  var value = self._get(key, parent, links);
 
   // we couldn't find the property
   if (!isDefined(value)) return self.handleUndefined(key, parent, links, i, path, parentDocument, normalize, cb);
 
   var next = i + 1;
   var nextProp = path[next];
-  var href = get('href', value);
+  var href = self._get('href', value);
 
   // we don't have a link to use or it's set locally on the object
   if (!href || value.hasOwnProperty(nextProp)) return self.traverse(value, links, next, path, parentDocument, normalize, cb);
 
-  // it's a local pointer
-  if (href.charAt(0) === '#') return self.fetchJsonPath(parentDocument, links, href.slice(1), next, path, normalize, cb);
-
   // fetch the resource
   return self.fetchResource(href, next, path, normalize, cb);
-}
+};
 
 /**
  * Handle an undefined value
@@ -232,9 +263,10 @@ Request.prototype.traverse = function(parent, links, i, path, parentDocument, no
  */
 
 Request.prototype.handleUndefined = function(key, parent, links, i, path, parentDocument, normalize, cb) {
+  this.trace('handleUndefined', arguments);
   // check to make sure it's not on a "normalized" target
-  var coll = normalizeTarget(parent);
-  if (get(key, coll)) return this.traverse(coll, links, i, path, parentDocument, normalize, cb);
+  var coll = this._normalizeTarget(parent);
+  if (this._get(key, coll)) return this.traverse(coll, links, i, path, parentDocument, normalize, cb);
 
   // We have a single hop path so we're going to try going up the prototype.
   // This is necessary for frameworks like Angular where they use prototypal
@@ -257,9 +289,12 @@ Request.prototype.handleUndefined = function(key, parent, links, i, path, parent
 
 Request.prototype.fetchResource = function(href, i, path, normalize, cb) {
   var self = this;
+  self.trace('fetchResource', arguments);
   var orig = href;
   var parts = orig.split('#');
   href = parts[0];
+
+  if (href === '') return cb(new Error('cannot request "' + orig + '" without parent document'));
 
   var listener = self._listeners[orig];
   var res = self._listeners[orig] = self.client.get(href, function(err, body, links) {
@@ -268,10 +303,12 @@ Request.prototype.fetchResource = function(href, i, path, normalize, cb) {
     links = links || {};
 
     // Be nice to APIs that don't set 'href'
-    if (!get('href', body)) body = set('href', href, body);
+    var bodyHref = self._get('href', body);
+    if (!bodyHref) body = self._set('href', href, body);
+    var resolved = self._resolve(bodyHref || href, body);
 
-    if (parts.length === 1) return self.traverse(body, links, i, path, body, normalize, cb);
-    return self.fetchJsonPath(body, links, parts[1], i, path, normalize, cb);
+    if (parts.length === 1) return self.traverse(resolved, links, i, path, resolved, normalize, cb);
+    return self.fetchJsonPath(resolved, links, parts[1], i, path, normalize, cb);
   });
 
   // Unsubscribe and resubscribe if it was previously requested
@@ -294,15 +331,43 @@ Request.prototype.fetchResource = function(href, i, path, normalize, cb) {
 
 Request.prototype.fetchJsonPath = function(parentDocument, links, href, i, path, normalize, cb) {
   var self = this;
+  self.trace('fetchJsonPath', arguments);
   var pointer = href.split('/');
 
   if (pointer[0] === '') pointer.shift();
 
   return self.traverse(parentDocument, links, 0, pointer, parentDocument, false, function(err, val) {
     if (err) return cb(err);
-    val = set('href', parentDocument.href + '#' + href, val);
+    val = self._set('href', parentDocument.href + '#' + href, val);
     return self.traverse(val, links, i, path, parentDocument, normalize, cb);
   });
+};
+
+/**
+ * Resolve any local JSON pointers
+ *
+ * @param {String} root
+ * @param {Any} body
+ * @return {Any}
+ */
+
+Request.prototype._resolve = function(root, body, type) {
+  this.trace('_resolve', arguments);
+  if (!body || (type || typeof body) !== 'object') return body;
+  var obj = Array.isArray(body) ? [] : {};
+  var value, childType;
+  for (var key in body) {
+    if (!body.hasOwnProperty(key)) continue;
+    value = body[key];
+
+    childType = typeof value;
+    if (key === 'href' && childType === 'string' && value.charAt(0) === '#') {
+      obj.href = root + value;
+    } else {
+      obj[key] = this._resolve(root, value, childType);
+    }
+  }
+  return obj;
 };
 
 /**
@@ -311,7 +376,8 @@ Request.prototype.fetchJsonPath = function(parentDocument, links, href, i, path,
  * @api private
  */
 
-function get(key, parent, fallback) {
+Request.prototype._get = function(key, parent, fallback) {
+  this.trace('_get', arguments);
   if (!parent) return undefined;
   if (parent.hasOwnProperty(key)) return parent[key];
   if (typeof parent.get === 'function') return parent.get(key);
@@ -325,7 +391,8 @@ function get(key, parent, fallback) {
  * @api private
  */
 
-function set(key, value, obj) {
+Request.prototype._set = function(key, value, obj) {
+  this.trace('_set', arguments);
   if (!obj || typeof obj !== 'object') return obj;
   if (typeof obj.set === 'function') return obj.set(key, value);
   obj[key] = value;
@@ -338,12 +405,12 @@ function set(key, value, obj) {
  * @api private
  */
 
-function normalizeTarget(target) {
+Request.prototype._normalizeTarget = function(target) {
+  this.trace('_normalizeTarget', arguments);
   if (typeof target !== 'object' || !target) return target;
-  var href = get('href', target);
-  target = get('collection', target) || get('data', target) || target; // TODO deprecate 'data'
-  target.href = href;
-  return set('href', href, target);
+  var href = this._get('href', target);
+  target = this._get('collection', target) || this._get('data', target) || target; // TODO deprecate 'data'
+  return this._set('href', href, target);
 }
 
 /**
