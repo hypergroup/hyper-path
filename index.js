@@ -112,10 +112,12 @@ Request.prototype.parse = function(str) {
  */
 
 Request.prototype.off = function() {
-  for (var i = 0, listener; i < this._listeners; i++) {
-    listener = this._listener[i];
+  var listeners = this._listeners;
+  Object.keys(listeners).forEach(function(href) {
+    var listener = listeners[href];
     if (listener) listener();
-  }
+    delete listeners[href];
+  });
   return this;
 };
 
@@ -146,7 +148,7 @@ Request.prototype.traverse = function(parent, links, i, path, parentDocument, no
 
   var next = i + 1;
   var nextProp = path[next];
-  var href = value.href;
+  var href = get('href', value);
 
   // we don't have a link to use or it's set locally on the object
   if (!href || value.hasOwnProperty(nextProp)) return self.traverse(value, links, next, path, parentDocument, normalize, cb);
@@ -173,15 +175,14 @@ Request.prototype.traverse = function(parent, links, i, path, parentDocument, no
 
 Request.prototype.handleUndefined = function(key, parent, links, i, path, parentDocument, normalize, cb) {
   // check to make sure it's not on a "normalized" target
-  var collection = normalizeTarget(parent);
-  if (collection && collection.hasOwnProperty(key)) return this.traverse(collection, links, i, path, parentDocument, normalize, cb);
+  var coll = normalizeTarget(parent);
+  if (get(key, coll)) return this.traverse(coll, links, i, path, parentDocument, normalize, cb);
 
   // We have a single hop path so we're going to try going up the prototype.
   // This is necessary for frameworks like Angular where they use prototypal
   // inheritance. The risk is getting a value that is on the root Object.
   // We can at least check that we don't return a function though.
-  var value;
-  if (this.wrappedScope) value = parent[key];
+  var value = parent[key];
   if (typeof value === 'function') value = void 0;
   return cb(null, value);
 };
@@ -209,7 +210,7 @@ Request.prototype.fetchResource = function(href, i, path, normalize, cb) {
     links = links || {};
 
     // Be nice to APIs that don't set 'href'
-    if (!body.href) body.href = href;
+    if (!get('href', body)) body = set('href', href, body);
 
     if (parts.length === 1) return self.traverse(body, links, i, path, body, normalize, cb);
     return self.fetchJsonPath(body, links, parts[1], i, path, normalize, cb);
@@ -241,7 +242,7 @@ Request.prototype.fetchJsonPath = function(parentDocument, links, href, i, path,
 
   return self.traverse(parentDocument, links, 0, pointer, parentDocument, false, function(err, val) {
     if (err) return cb(err);
-    if (typeof val === 'object' && !val.href) val.href = parentDocument.href + '#' + href;
+    val = set('href', parentDocument.href + '#' + href, val);
     return self.traverse(val, links, i, path, parentDocument, normalize, cb);
   });
 };
@@ -261,17 +262,30 @@ function get(key, parent, fallback) {
 }
 
 /**
+ * Set a value on an object
+ *
+ * @api private
+ */
+
+function set(key, value, obj) {
+  if (!obj || typeof obj !== 'object') return obj;
+  if (typeof obj.set === 'function') return obj.set(key, value);
+  obj[key] = value;
+  return obj;
+}
+
+/**
  * If the final object is an collection, pass that back
  *
  * @api private
  */
 
 function normalizeTarget(target) {
-  if (typeof target !== 'object') return target;
-  var href = target.href;
-  target = target.collection || target.data || target; // TODO deprecate 'data'
+  if (typeof target !== 'object' || !target) return target;
+  var href = get('href', target);
+  target = get('collection', target) || get('data', target) || target; // TODO deprecate 'data'
   target.href = href;
-  return target;
+  return set('href', href, target);
 }
 
 /**
