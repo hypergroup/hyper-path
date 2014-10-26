@@ -1,6 +1,4 @@
-/**
- * Module dependencies
- */
+function noop() {}
 
 /**
  * Expose the Request object
@@ -66,26 +64,16 @@ Request.prototype.on = function(fn) {
 
 Request.prototype.get =
 Request.prototype.refresh = function(fn) {
-  var self = this;
-  self.trace('get', arguments);
-  var scope = self._scope;
-  fn = fn || self._fn;
+  this.trace('get', arguments);
+  var scope = this._scope;
+  fn = fn || this._fn;
 
   // Clear any previous listeners
   this.off();
 
-  if (!self.isRoot) return self.traverse(scope, {}, 0, self.path, {}, true, fn);
-
-  return this._listeners['.'] = self.client.root(function(err, body, links, href) {
-    if (err) return fn(err);
-    links = links || {};
-    href = href || body.href;
-
-    if (!href) self.warn('root missing href: local JSON pointers will not function properly');
-    else body = self._resolve(body.href, body);
-
-    return self.traverse(body || scope, links, 1, self.path, body, true, fn);
-  });
+  return this.isRoot ?
+    this.fetchRoot(scope, fn) :
+    this.traverse(scope, {}, 0, this.path, {}, true, fn);
 };
 
 /**
@@ -145,12 +133,11 @@ Request.prototype.parse = function(str) {
 
 Request.prototype.off = function() {
   this.trace('trace');
-  var listeners = this._listeners;
-  Object.keys(listeners).forEach(function(href) {
-    var listener = listeners[href];
-    if (listener) listener();
-    delete listeners[href];
-  });
+
+  for (var key in this._listeners) {
+    this.replaceListener(key, null, this._fn);
+  }
+
   return this;
 };
 
@@ -172,7 +159,7 @@ Request.prototype.traverse = function(parent, links, i, path, parentDocument, no
   self.trace('traverse', arguments);
 
   // we're done searching
-  if (i >= path.length) return cb(null, normalize ? self._normalizeTarget(parent) : parent);
+  if (i >= path.length) return cb(null, normalize ? self._normalizeTarget(parent) : parent, parentDocument);
 
   var key = path[i];
   var value = self._get(key, parent, links);
@@ -216,7 +203,35 @@ Request.prototype.handleUndefined = function(key, parent, links, i, path, parent
   // We can at least check that we don't return a function though.
   var value = parent[key];
   if (typeof value === 'function') value = void 0;
-  return cb(null, value);
+  return cb(null, value, parentDocument);
+};
+
+/**
+ * Fetch the root resource through the client
+ *
+ * @param {Object} scope
+ * @param {Function} cb
+ */
+
+Request.prototype.fetchRoot = function(scope, cb) {
+  var self = this;
+  self.trace('fetchRoot', arguments);
+
+  var res = self.client.root(function handleRoot(err, body, links, href) {
+    if (err) return cb(err);
+    if (!body && !links) return cb(null);
+    links = links || {};
+
+    var bodyHref = self._get('href', body);
+    href = href || bodyHref;
+
+    if (!href) self.warn('root missing href: local JSON pointers will not function properly');
+    else body = self._resolve(bodyHref, body);
+
+    return self.traverse(body || scope, links, 1, self.path, body, true, cb);
+  });
+
+  return self.replaceListener('.', res, cb);
 };
 
 /**
@@ -238,11 +253,13 @@ Request.prototype.fetchResource = function(href, i, path, normalize, cb) {
 
   if (href === '') return cb(new Error('cannot request "' + orig + '" without parent document'));
 
-  var listener = self._listeners[orig];
-  var res = self._listeners[orig] = self.client.get(href, function(err, body, links) {
+  var res = self.client.get(href, function handleResource(err, body, links, hrefOverride) {
     if (err) return cb(err);
     if (!body && !links) return cb(null);
     links = links || {};
+
+    // allow clients to override the href (usually because of a redirect)
+    href = hrefOverride || href;
 
     // Be nice to APIs that don't set 'href'
     var bodyHref = self._get('href', body);
@@ -253,9 +270,24 @@ Request.prototype.fetchResource = function(href, i, path, normalize, cb) {
     return self.fetchJsonPath(resolved, links, parts[1], i, path, normalize, cb);
   });
 
-  // Unsubscribe and resubscribe if it was previously requested
-  if (listener) listener();
+  return self.replaceListener(orig, res, cb);
+};
 
+/**
+ * Replace the listener for a key
+ *
+ * @param {String} key
+ * @param {Any} res
+ * @param {Function} cb
+ * @return {Any}
+ */
+
+Request.prototype.replaceListener = function(key, res, cb) {
+  this.trace('replaceListener', arguments);
+  if (this._fn !== cb) return res;
+  (this._listeners[key] || noop)();
+  if (!res) delete this._listeners[key];
+  else this._listeners[key] = typeof res === 'function' ? res : noop;
   return res;
 };
 
@@ -278,7 +310,7 @@ Request.prototype.fetchJsonPath = function(parentDocument, links, href, i, path,
 
   if (pointer[0] === '') pointer.shift();
 
-  return self.traverse(parentDocument, links, 0, pointer, parentDocument, false, function(err, val) {
+  return self.traverse(parentDocument, links, 0, pointer, parentDocument, false, function handleJsonPath(err, val) {
     if (err) return cb(err);
     val = self._set('href', parentDocument.href + '#' + href, val);
     return self.traverse(val, links, i, path, parentDocument, normalize, cb);
