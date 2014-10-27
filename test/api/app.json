@@ -1,6 +1,9 @@
 {
   "href": "/api/app.json",
-  "name": "app",
+  "name": {
+    "docs": "https://example.com/docs/app/name",
+    "data": "app"
+  },
   "users": {
     "href": "/api/users.json"
   }

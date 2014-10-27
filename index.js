@@ -307,12 +307,13 @@ Request.prototype.fetchJsonPath = function(parentDocument, links, href, i, path,
   var self = this;
   self.trace('fetchJsonPath', arguments);
   var pointer = href.split('/');
+  var resolvedHref = parentDocument.href + '#' + href;
 
   if (pointer[0] === '') pointer.shift();
 
   return self.traverse(parentDocument, links, 0, pointer, parentDocument, false, function handleJsonPath(err, val) {
     if (err) return cb(err);
-    val = self._set('href', parentDocument.href + '#' + href, val);
+    if (!self._get('href', val)) val = self._set('href', resolvedHref, val);
     return self.traverse(val, links, i, path, parentDocument, normalize, cb);
   });
 };
@@ -383,7 +384,7 @@ Request.prototype._normalizeTarget = function(target) {
   this.trace('_normalizeTarget', arguments);
   if (typeof target !== 'object' || !target) return target;
   var href = this._get('href', target);
-  target = this._get('collection', target) || this._get('data', target) || target; // TODO deprecate 'data'
+  target = this._get('collection', target) || this._get('data', target) || target;
   return this._set('href', href, target);
 }
 
