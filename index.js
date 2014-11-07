@@ -385,7 +385,7 @@ Request.prototype._normalizeTarget = function(target) {
   if (typeof target !== 'object' || !target) return target;
   var href = this._get('href', target);
   target = this._get('collection', target) || this._get('data', target) || target;
-  return this._set('href', href, target);
+  return href ? this._set('href', href, target) : target;
 }
 
 /**
