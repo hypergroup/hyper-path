@@ -201,7 +201,7 @@ Request.prototype.handleUndefined = function(key, parent, links, i, path, parent
   // This is necessary for frameworks like Angular where they use prototypal
   // inheritance. The risk is getting a value that is on the root Object.
   // We can at least check that we don't return a function though.
-  var value = parent[key];
+  var value = parent && parent[key];
   if (typeof value === 'function') value = void 0;
   return cb(null, value, parentDocument);
 };
