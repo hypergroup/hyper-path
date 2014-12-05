@@ -23,6 +23,89 @@ function require(name) {
 }
 
 /**
+ * Meta info, accessible in the global scope unless you use AMD option.
+ */
+
+require.loader = 'component';
+
+/**
+ * Internal helper object, contains a sorting function for semantiv versioning
+ */
+require.helper = {};
+require.helper.semVerSort = function(a, b) {
+  var aArray = a.version.split('.');
+  var bArray = b.version.split('.');
+  for (var i=0; i<aArray.length; ++i) {
+    var aInt = parseInt(aArray[i], 10);
+    var bInt = parseInt(bArray[i], 10);
+    if (aInt === bInt) {
+      var aLex = aArray[i].substr((""+aInt).length);
+      var bLex = bArray[i].substr((""+bInt).length);
+      if (aLex === '' && bLex !== '') return 1;
+      if (aLex !== '' && bLex === '') return -1;
+      if (aLex !== '' && bLex !== '') return aLex > bLex ? 1 : -1;
+      continue;
+    } else if (aInt > bInt) {
+      return 1;
+    } else {
+      return -1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Find and require a module which name starts with the provided name.
+ * If multiple modules exists, the highest semver is used. 
+ * This function can only be used for remote dependencies.
+
+ * @param {String} name - module name: `user~repo`
+ * @param {Boolean} returnPath - returns the canonical require path if true, 
+ *                               otherwise it returns the epxorted module
+ */
+require.latest = function (name, returnPath) {
+  function showError(name) {
+    throw new Error('failed to find latest module of "' + name + '"');
+  }
+  // only remotes with semvers, ignore local files conataining a '/'
+  var versionRegexp = /(.*)~(.*)@v?(\d+\.\d+\.\d+[^\/]*)$/;
+  var remoteRegexp = /(.*)~(.*)/;
+  if (!remoteRegexp.test(name)) showError(name);
+  var moduleNames = Object.keys(require.modules);
+  var semVerCandidates = [];
+  var otherCandidates = []; // for instance: name of the git branch
+  for (var i=0; i<moduleNames.length; i++) {
+    var moduleName = moduleNames[i];
+    if (new RegExp(name + '@').test(moduleName)) {
+        var version = moduleName.substr(name.length+1);
+        var semVerMatch = versionRegexp.exec(moduleName);
+        if (semVerMatch != null) {
+          semVerCandidates.push({version: version, name: moduleName});
+        } else {
+          otherCandidates.push({version: version, name: moduleName});
+        } 
+    }
+  }
+  if (semVerCandidates.concat(otherCandidates).length === 0) {
+    showError(name);
+  }
+  if (semVerCandidates.length > 0) {
+    var module = semVerCandidates.sort(require.helper.semVerSort).pop().name;
+    if (returnPath === true) {
+      return module;
+    }
+    return require(module);
+  }
+  // if the build contains more than one branch of the same module
+  // you should not use this funciton
+  var module = otherCandidates.pop().name;
+  if (returnPath === true) {
+    return module;
+  }
+  return require(module);
+}
+
+/**
  * Registered modules.
  */
 
@@ -259,7 +342,7 @@ Request.prototype.handleUndefined = function(key, parent, links, i, path, parent
   // This is necessary for frameworks like Angular where they use prototypal
   // inheritance. The risk is getting a value that is on the root Object.
   // We can at least check that we don't return a function though.
-  var value = parent[key];
+  var value = parent && parent[key];
   if (typeof value === 'function') value = void 0;
   return cb(null, value, parentDocument);
 };
@@ -442,8 +525,22 @@ Request.prototype._normalizeTarget = function(target) {
   this.trace('_normalizeTarget', arguments);
   if (typeof target !== 'object' || !target) return target;
   var href = this._get('href', target);
-  target = this._get('collection', target) || this._get('data', target) || target;
-  return this._set('href', href, target);
+  target = firstDefined(this._get('collection', target), this._get('data', target), target);
+  return href ? this._set('href', href, target) : target;
+}
+
+/**
+ * Choose the first defined value
+ *
+ * @api private
+ */
+
+function firstDefined() {
+  for (var i = 0, l = arguments.length, v; i < l; i++) {
+    v = arguments[i];
+    if (typeof v !== 'undefined') return v;
+  }
+  return v;
 }
 
 /**
@@ -461,8 +558,8 @@ function isDefined(value) {
 if (typeof exports == "object") {
   module.exports = require("hyper-path");
 } else if (typeof define == "function" && define.amd) {
-  define([], function(){ return require("hyper-path"); });
+  define("hyper-path", [], function(){ return require("hyper-path"); });
 } else {
-  this["hyper-path"] = require("hyper-path");
+  (this || window)["hyper-path"] = require("hyper-path");
 }
 })()

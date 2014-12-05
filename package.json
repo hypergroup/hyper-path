@@ -1,6 +1,6 @@
 {
   "name": "hyper-path",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "Traverse a hyper api",
   "main": "index.js",
   "directories": {
