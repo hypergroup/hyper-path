@@ -124,6 +124,15 @@ describe('hyper-path', function() {
       });
   });
 
+  it('should return falsy "data" values', function(done) {
+    client('.title', agent)
+      .on(function(err, title) {
+        if (err) return done(err);
+        should.not.exist(title);
+        done();
+      });
+  });
+
   it('should return a "href"', function(done) {
     client('.apps.href', agent)
       .on(function(err, href) {

@@ -384,8 +384,22 @@ Request.prototype._normalizeTarget = function(target) {
   this.trace('_normalizeTarget', arguments);
   if (typeof target !== 'object' || !target) return target;
   var href = this._get('href', target);
-  target = this._get('collection', target) || this._get('data', target) || target;
+  target = firstDefined(this._get('collection', target), this._get('data', target), target);
   return href ? this._set('href', href, target) : target;
+}
+
+/**
+ * Choose the first defined value
+ *
+ * @api private
+ */
+
+function firstDefined() {
+  for (var i = 0, l = arguments.length, v; i < l; i++) {
+    v = arguments[i];
+    if (typeof v !== 'undefined') return v;
+  }
+  return v;
 }
 
 /**
