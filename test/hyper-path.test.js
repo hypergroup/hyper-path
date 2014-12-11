@@ -72,6 +72,37 @@ describe('hyper-path', function() {
       });
   });
 
+  it('should start from a bare scope', function(done) {
+    client('0.name', agent)
+      .scope({href: '/api/apps.json'})
+      .on(function(err, name) {
+        if (err) return done(err);
+        should.exist(name);
+        name.should.eql('app');
+        done();
+      });
+  });
+
+  it('should start from a bare scope with an undefined value', function(done) {
+    client('0.name', agent)
+      .scope({})
+      .on(function(err, name) {
+        if (err) return done(err);
+        should.not.exist(name);
+        done();
+      });
+  });
+
+  it('should start from a bare scope with an unknown target', function(done) {
+    client('non-existant.property', agent)
+      .scope({href: '/api/app.json'})
+      .on(function(err, name) {
+        if (err) return done(err);
+        should.not.exist(name);
+        done();
+      });
+  });
+
   it('should refresh on scope change', function(done) {
     var hasResponded = false;
     var req = client('apps.0.name', agent)

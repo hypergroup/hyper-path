@@ -165,7 +165,17 @@ Request.prototype.traverse = function(parent, links, i, path, parentDocument, no
   var value = self._get(key, parent, links);
 
   // we couldn't find the property
-  if (!isDefined(value)) return self.handleUndefined(key, parent, links, i, path, parentDocument, normalize, cb);
+  if (!isDefined(value)) {
+    if (i !== 0 || !self._get('href', parent)) return self.handleUndefined(key, parent, links, i, path, parentDocument, normalize, cb);
+
+    // handle cases where the scope has an href
+    path = path.slice();
+    path.unshift('value');
+
+    return self.traverse({
+      value: parent
+    }, links, 0, path, parentDocument, normalize, cb);
+  }
 
   var next = i + 1;
   var nextProp = path[next];
