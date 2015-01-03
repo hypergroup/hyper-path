@@ -7,6 +7,12 @@ function noop() {}
 module.exports = Request;
 
 /**
+ * Get a reference to hasOwnProperty
+ */
+
+var hasOwnProperty = Object.prototype.hasOwnProperty;
+
+/**
  * Create a hyper-path request
  *
  * @param {String} path
@@ -182,7 +188,7 @@ Request.prototype.traverse = function(parent, links, i, path, parentDocument, no
   var href = self._get('href', value);
 
   // we don't have a link to use or it's set locally on the object
-  if (!href || value.hasOwnProperty(nextProp)) return self.traverse(value, links, next, path, parentDocument, normalize, cb);
+  if (!href || hasOwnProperty.call(value, nextProp)) return self.traverse(value, links, next, path, parentDocument, normalize, cb);
 
   // fetch the resource
   return self.fetchResource(href, next, path, normalize, cb);
@@ -236,7 +242,9 @@ Request.prototype.fetchRoot = function(scope, cb) {
     href = href || bodyHref;
 
     if (!href) self.warn('root missing href: local JSON pointers will not function properly');
-    else body = shouldResolve === false ? body : self._resolve(bodyHref, body);
+    else body = shouldResolve === false ?
+      body :
+      self._resolve(bodyHref, body);
 
     return self.traverse(body || scope, links, 1, self.path, body, true, cb);
   });
@@ -274,10 +282,14 @@ Request.prototype.fetchResource = function(href, i, path, normalize, cb) {
     // Be nice to APIs that don't set 'href'
     var bodyHref = self._get('href', body);
     if (!bodyHref) body = self._set('href', href, body);
-    var resolved = shouldResolve === false ? body : self._resolve(bodyHref || href, body);
 
-    if (parts.length === 1) return self.traverse(resolved, links, i, path, resolved, normalize, cb);
-    return self.fetchJsonPath(resolved, links, parts[1], i, path, normalize, cb);
+    var resolved = shouldResolve === false ?
+          body :
+          self._resolve(bodyHref || href, body);
+
+    return parts.length === 1 ?
+      self.traverse(resolved, links, i, path, resolved, normalize, cb) :
+      self.fetchJsonPath(resolved, links, parts[1], i, path, normalize, cb);
   });
 
   return self.replaceListener(orig, res, cb);
@@ -342,7 +354,7 @@ Request.prototype._resolve = function(root, body, type) {
   var obj = Array.isArray(body) ? [] : {};
   var value, childType;
   for (var key in body) {
-    if (!body.hasOwnProperty(key)) continue;
+    if (!hasOwnProperty.call(body, key)) continue;
     value = body[key];
 
     childType = typeof value;
@@ -363,10 +375,10 @@ Request.prototype._resolve = function(root, body, type) {
 
 Request.prototype._get = function(key, parent, fallback) {
   this.trace('_get', arguments);
-  if (!parent) return undefined;
-  if (parent.hasOwnProperty(key)) return parent[key];
+  if (!parent) return void 0;
+  if (hasOwnProperty.call(parent, key)) return parent[key];
   if (typeof parent.get === 'function') return parent.get(key);
-  if (fallback && fallback.hasOwnProperty(key)) return {href: fallback[key]};
+  if (fallback && hasOwnProperty.call(fallback, key)) return {href: fallback[key]};
   return void 0;
 }
 
