@@ -207,12 +207,12 @@ Request.prototype.handleUndefined = function(key, parent, links, i, path, parent
   var coll = this._normalizeTarget(parent);
   if (this._get(key, coll)) return this.traverse(coll, links, i, path, parentDocument, normalize, cb);
 
-  // We have a single hop path so we're going to try going up the prototype.
-  // This is necessary for frameworks like Angular where they use prototypal
-  // inheritance. The risk is getting a value that is on the root Object.
-  // We can at least check that we don't return a function though.
   var value = parent && parent[key];
-  if (typeof value === 'function') value = void 0;
+  if (typeof value === 'function') return cb(null, value.bind(parent), parentDocument);
+
+  value = value || coll && coll[key];
+  if (typeof value === 'function') return cb(null, value.bind(coll), parentDocument);
+
   return cb(null, value, parentDocument);
 };
 

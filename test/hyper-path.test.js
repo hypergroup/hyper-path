@@ -174,11 +174,12 @@ describe('hyper-path', function() {
       });
   });
 
-  it('should not reference native array functions', function(done) {
+  it('should bind native array functions', function(done) {
     client('.apps.slice', agent)
       .on(function(err, slice) {
         if (err) return done(err);
-        should.not.exist(slice);
+        should.exist(slice);
+        slice(1).length.should.eql(1);
         done();
       });
   });
