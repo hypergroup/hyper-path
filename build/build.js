@@ -348,12 +348,12 @@ Request.prototype.handleUndefined = function(key, parent, links, i, path, parent
   var coll = this._normalizeTarget(parent);
   if (this._get(key, coll)) return this.traverse(coll, links, i, path, parentDocument, normalize, cb);
 
-  // We have a single hop path so we're going to try going up the prototype.
-  // This is necessary for frameworks like Angular where they use prototypal
-  // inheritance. The risk is getting a value that is on the root Object.
-  // We can at least check that we don't return a function though.
   var value = parent && parent[key];
-  if (typeof value === 'function') value = void 0;
+  if (typeof value === 'function') return cb(null, value.bind(parent), parentDocument);
+
+  value = value || coll && coll[key];
+  if (typeof value === 'function') return cb(null, value.bind(coll), parentDocument);
+
   return cb(null, value, parentDocument);
 };
 
@@ -404,7 +404,7 @@ Request.prototype.fetchResource = function(href, i, path, normalize, cb) {
 
   if (href === '') return cb(new Error('cannot request "' + orig + '" without parent document'));
 
-  var res = self.client.get(href, function handleResource(err, body, links, hrefOverride) {
+  var res = self.client.get(href, function handleResource(err, body, links, hrefOverride, shouldResolve) {
     if (err) return cb(err);
     if (!body && !links) return cb(null);
     links = links || {};
@@ -415,7 +415,7 @@ Request.prototype.fetchResource = function(href, i, path, normalize, cb) {
     // Be nice to APIs that don't set 'href'
     var bodyHref = self._get('href', body);
     if (!bodyHref) body = self._set('href', href, body);
-    var resolved = self._resolve(bodyHref || href, body);
+    var resolved = shouldResolve === false ? body : self._resolve(bodyHref || href, body);
 
     if (parts.length === 1) return self.traverse(resolved, links, i, path, resolved, normalize, cb);
     return self.fetchJsonPath(resolved, links, parts[1], i, path, normalize, cb);
