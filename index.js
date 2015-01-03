@@ -263,7 +263,7 @@ Request.prototype.fetchResource = function(href, i, path, normalize, cb) {
 
   if (href === '') return cb(new Error('cannot request "' + orig + '" without parent document'));
 
-  var res = self.client.get(href, function handleResource(err, body, links, hrefOverride) {
+  var res = self.client.get(href, function handleResource(err, body, links, hrefOverride, shouldResolve) {
     if (err) return cb(err);
     if (!body && !links) return cb(null);
     links = links || {};
@@ -274,7 +274,7 @@ Request.prototype.fetchResource = function(href, i, path, normalize, cb) {
     // Be nice to APIs that don't set 'href'
     var bodyHref = self._get('href', body);
     if (!bodyHref) body = self._set('href', href, body);
-    var resolved = self._resolve(bodyHref || href, body);
+    var resolved = shouldResolve === false ? body : self._resolve(bodyHref || href, body);
 
     if (parts.length === 1) return self.traverse(resolved, links, i, path, resolved, normalize, cb);
     return self.fetchJsonPath(resolved, links, parts[1], i, path, normalize, cb);
