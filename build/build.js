@@ -368,7 +368,7 @@ Request.prototype.fetchRoot = function(scope, cb) {
   var self = this;
   self.trace('fetchRoot', arguments);
 
-  var res = self.client.root(function handleRoot(err, body, links, href) {
+  var res = self.client.root(function handleRoot(err, body, links, href, shouldResolve) {
     if (err) return cb(err);
     if (!body && !links) return cb(null);
     links = links || {};
@@ -377,7 +377,7 @@ Request.prototype.fetchRoot = function(scope, cb) {
     href = href || bodyHref;
 
     if (!href) self.warn('root missing href: local JSON pointers will not function properly');
-    else body = self._resolve(bodyHref, body);
+    else body = shouldResolve === false ? body : self._resolve(bodyHref, body);
 
     return self.traverse(body || scope, links, 1, self.path, body, true, cb);
   });
