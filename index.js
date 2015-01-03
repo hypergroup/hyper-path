@@ -42,7 +42,6 @@ function Request(path, client, delim) {
  */
 
 Request.prototype.scope = function(scope) {
-  this.trace('scope', arguments);
   this._scope = this.wrappedScope ? [scope] : scope;
   if (this._fn) this.get();
   return this;
@@ -56,7 +55,6 @@ Request.prototype.scope = function(scope) {
  */
 
 Request.prototype.on = function(fn) {
-  this.trace('on', arguments);
   this._fn = fn;
   this.get();
   return this;
@@ -70,7 +68,6 @@ Request.prototype.on = function(fn) {
 
 Request.prototype.get =
 Request.prototype.refresh = function(fn) {
-  this.trace('get', arguments);
   var scope = this._scope;
   fn = fn || this._fn;
 
@@ -96,15 +93,6 @@ Request.prototype.warn = function(str) {
 };
 
 /**
- * Trace a request
- *
- * @param {String} method
- * @param {Array} args
- */
-
-Request.prototype.trace = function(method, args) {};
-
-/**
  * Parse the string with the following syntax
  *
  *   Start at this.scope['path']
@@ -120,7 +108,6 @@ Request.prototype.trace = function(method, args) {};
  */
 
 Request.prototype.parse = function(str) {
-  this.trace('parse', arguments);
   var path = this.path = Array.isArray(str) ? str.slice() : str.split(this.delim);
   this.index = path[0];
   if (path.length === 1) {
@@ -138,8 +125,6 @@ Request.prototype.parse = function(str) {
  */
 
 Request.prototype.off = function() {
-  this.trace('trace');
-
   for (var key in this._listeners) {
     this.replaceListener(key, null, this._fn);
   }
@@ -162,7 +147,6 @@ Request.prototype.off = function() {
 
 Request.prototype.traverse = function(parent, links, i, path, parentDocument, normalize, cb) {
   var self = this;
-  self.trace('traverse', arguments);
 
   // we're done searching
   if (i >= path.length) return cb(null, normalize ? self._normalizeTarget(parent) : parent, parentDocument);
@@ -208,7 +192,6 @@ Request.prototype.traverse = function(parent, links, i, path, parentDocument, no
  */
 
 Request.prototype.handleUndefined = function(key, parent, links, i, path, parentDocument, normalize, cb) {
-  this.trace('handleUndefined', arguments);
   // check to make sure it's not on a "normalized" target
   var coll = this._normalizeTarget(parent);
   if (this._get(key, coll)) return this.traverse(coll, links, i, path, parentDocument, normalize, cb);
@@ -231,7 +214,6 @@ Request.prototype.handleUndefined = function(key, parent, links, i, path, parent
 
 Request.prototype.fetchRoot = function(scope, cb) {
   var self = this;
-  self.trace('fetchRoot', arguments);
 
   var res = self.client.root(function handleRoot(err, body, links, href, shouldResolve) {
     if (err) return cb(err);
@@ -264,7 +246,6 @@ Request.prototype.fetchRoot = function(scope, cb) {
 
 Request.prototype.fetchResource = function(href, i, path, normalize, cb) {
   var self = this;
-  self.trace('fetchResource', arguments);
   var orig = href;
   var parts = orig.split('#');
   href = parts[0];
@@ -305,7 +286,6 @@ Request.prototype.fetchResource = function(href, i, path, normalize, cb) {
  */
 
 Request.prototype.replaceListener = function(key, res, cb) {
-  this.trace('replaceListener', arguments);
   if (this._fn !== cb) return res;
   (this._listeners[key] || noop)();
   if (!res) delete this._listeners[key];
@@ -327,7 +307,6 @@ Request.prototype.replaceListener = function(key, res, cb) {
 
 Request.prototype.fetchJsonPath = function(parentDocument, links, href, i, path, normalize, cb) {
   var self = this;
-  self.trace('fetchJsonPath', arguments);
   var pointer = href.split('/');
   var resolvedHref = parentDocument.href + '#' + href;
 
@@ -349,7 +328,6 @@ Request.prototype.fetchJsonPath = function(parentDocument, links, href, i, path,
  */
 
 Request.prototype._resolve = function(root, body, type) {
-  this.trace('_resolve', arguments);
   if (!body || (type || typeof body) !== 'object') return body;
   var obj = Array.isArray(body) ? [] : {};
   var value, childType;
@@ -374,7 +352,6 @@ Request.prototype._resolve = function(root, body, type) {
  */
 
 Request.prototype._get = function(key, parent, fallback) {
-  this.trace('_get', arguments);
   if (!parent) return void 0;
   if (hasOwnProperty.call(parent, key)) return parent[key];
   if (typeof parent.get === 'function') return parent.get(key);
@@ -389,7 +366,6 @@ Request.prototype._get = function(key, parent, fallback) {
  */
 
 Request.prototype._set = function(key, value, obj) {
-  this.trace('_set', arguments);
   if (!obj || typeof obj !== 'object') return obj;
   if (typeof obj.set === 'function') return obj.set(key, value);
   obj[key] = value;
@@ -403,7 +379,6 @@ Request.prototype._set = function(key, value, obj) {
  */
 
 Request.prototype._normalizeTarget = function(target) {
-  this.trace('_normalizeTarget', arguments);
   if (typeof target !== 'object' || !target) return target;
   var href = this._get('href', target);
   target = firstDefined(this._get('collection', target), this._get('data', target), target);
