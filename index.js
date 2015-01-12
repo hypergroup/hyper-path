@@ -270,7 +270,7 @@ Request.prototype.fetchResource = function(href, i, path, normalize, cb) {
 
     return parts.length === 1 ?
       self.traverse(resolved, links, i, path, resolved, normalize, cb) :
-      self.fetchJsonPath(resolved, links, parts[1], i, path, normalize, cb);
+      self.fetchJsonPath(href, resolved, links, parts[1], i, path, normalize, cb);
   });
 
   return self.replaceListener(orig, res, cb);
@@ -296,6 +296,7 @@ Request.prototype.replaceListener = function(key, res, cb) {
 /**
  * Traverse a JSON path
  *
+ * @param {String} parentHref
  * @param {Object} parentDocument
  * @param {Object} links
  * @param {String} href
@@ -305,10 +306,10 @@ Request.prototype.replaceListener = function(key, res, cb) {
  * @param {Function} cb
  */
 
-Request.prototype.fetchJsonPath = function(parentDocument, links, href, i, path, normalize, cb) {
+Request.prototype.fetchJsonPath = function(parentHref, parentDocument, links, href, i, path, normalize, cb) {
   var self = this;
   var pointer = href.split('/');
-  var resolvedHref = parentDocument.href + '#' + href;
+  var resolvedHref = (parentDocument.href || parentHref || '') + '#' + href;
 
   if (pointer[0] === '') pointer.shift();
 
