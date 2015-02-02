@@ -278,4 +278,12 @@ module.exports = function(agent) {
           });
       });
   });
+
+  it('should not stack overflow with JSON pointers', function(done) {
+    client('.image', agent)
+      .on(function(err, src) {
+        should.exist(src);
+        done();
+      });
+  });
 };

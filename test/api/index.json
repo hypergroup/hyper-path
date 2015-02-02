@@ -32,5 +32,8 @@
   "title": {
     "data": null,
     "other": true
+  },
+  "image": {
+    "href": "/api/app.json#/image"
   }
 }

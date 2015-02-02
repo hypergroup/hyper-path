@@ -6,5 +6,9 @@
   },
   "users": {
     "href": "/api/users.json"
+  },
+  "image": {
+    "src": "http://example.com/imaqes/1.png",
+    "href": "/api/app.json#image"
   }
 }

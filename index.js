@@ -172,7 +172,7 @@ Request.prototype.traverse = function(parent, links, i, path, parentDocument, no
   var href = self._get('href', value);
 
   // we don't have a link to use or it's set locally on the object
-  if (!href || hasOwnProperty.call(value, nextProp)) return self.traverse(value, links, next, path, parentDocument, normalize, cb);
+  if (!href || hasOwnProperty.call(value, nextProp) || path.length === 1) return self.traverse(value, links, next, path, parentDocument, normalize, cb);
 
   // fetch the resource
   return self.fetchResource(href, next, path, normalize, cb);
